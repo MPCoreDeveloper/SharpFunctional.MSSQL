@@ -11,8 +11,10 @@
 using LanguageExt;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using SharpFunctional.MsSql;
 using SharpFunctional.MsSql.Common;
+using SharpFunctional.MsSql.DependencyInjection;
 using SharpFunctional.MsSql.Example.Data;
 using SharpFunctional.MsSql.Example.Models;
 using SharpFunctional.MsSql.Transactions;
@@ -413,6 +415,63 @@ stats.IfSome(s => Console.WriteLine(
     $"  Customers: {s.CustomerCount} | Products: {s.ProductCount} | Orders: {s.OrderCount} | Lines: {s.OrderLineCount}"));
 
 Console.WriteLine();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 11. Dependency Injection — register and resolve via IServiceCollection
+// ═══════════════════════════════════════════════════════════════════════════
+
+Console.WriteLine("── Dependency Injection ────────────────────────");
+Console.WriteLine();
+
+Console.WriteLine("▸ Building DI container with EF Core + Dapper backends...");
+
+var diServices = new ServiceCollection();
+
+diServices.AddDbContext<SampleDbContext>(o => o.UseSqlServer(connectionString));
+
+diServices.AddFunctionalMsSql<SampleDbContext>(opts =>
+{
+    opts.ConnectionString = connectionString;
+    opts.ExecutionOptions = new SqlExecutionOptions(commandTimeoutSeconds: 30, maxRetryCount: 2);
+});
+
+await using var diProvider = diServices.BuildServiceProvider();
+Console.WriteLine("  ✓ Container built");
+Console.WriteLine();
+
+Console.WriteLine("▸ Resolving FunctionalMsSqlDb from a DI scope...");
+
+await using var diScope = diProvider.CreateAsyncScope();
+var diDb = diScope.ServiceProvider.GetRequiredService<FunctionalMsSqlDb>();
+
+Console.WriteLine("  ✓ FunctionalMsSqlDb resolved from scope");
+Console.WriteLine();
+
+Console.WriteLine("▸ EF query via DI-resolved facade (customers):");
+var diCustomers = await diDb.Ef().QueryAsync<Customer>(c => c.Id > 0);
+foreach (var c in diCustomers)
+{
+    Console.WriteLine($"  [{c.Id}] {c.FirstName} {c.LastName} <{c.Email}>");
+}
+
+Console.WriteLine();
+
+Console.WriteLine("▸ Dapper query via DI-resolved facade (DB stats):");
+var diStats = await diDb.Dapper().QuerySingleAsync<DbStats>(
+    """
+    SELECT
+        (SELECT COUNT(*) FROM Customers) AS CustomerCount,
+        (SELECT COUNT(*) FROM Products)  AS ProductCount,
+        (SELECT COUNT(*) FROM Orders)    AS OrderCount,
+        (SELECT COUNT(*) FROM OrderLines) AS OrderLineCount
+    """,
+    new { });
+
+diStats.IfSome(s => Console.WriteLine(
+    $"  Via DI: {s.CustomerCount} customers | {s.ProductCount} products | {s.OrderCount} orders | {s.OrderLineCount} lines"));
+
+Console.WriteLine();
+
 Console.WriteLine("╔══════════════════════════════════════════════╗");
 Console.WriteLine("║                    Done!                     ║");
 Console.WriteLine("╚══════════════════════════════════════════════╝");
