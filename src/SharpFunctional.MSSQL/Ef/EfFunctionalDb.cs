@@ -139,7 +139,7 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
     }
 
     /// <summary>
-    /// Marks an entity as modified and saves changes.
+    /// Saves changes for an entity, attaching detached instances as modified when needed.
     /// </summary>
     /// <typeparam name="T">The entity type.</typeparam>
     /// <param name="entity">The entity to update.</param>
@@ -159,7 +159,12 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
 
         try
         {
-            _dbContext.Set<T>().Update(entity);
+            var entry = _dbContext.Entry(entity);
+            if (entry.State == EntityState.Detached)
+            {
+                _dbContext.Set<T>().Update(entity);
+            }
+
             await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             return unit;
         }

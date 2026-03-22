@@ -40,7 +40,9 @@ public sealed class ProductService(FunctionalMsSqlDb db)
         {
             var add = await txDb.Ef().AddAsync(product, ct);
             if (add.IsFail)
-                return FinFail<Product>(add.Error);
+                return add.Match(
+                    Succ: _ => FinFail<Product>("Unexpected success"),
+                    Fail: FinFail<Product>);
 
             var save = await txDb.Ef().WithTracking().SaveAsync(product, ct);
             return save.Map(_ => product);
@@ -48,4 +50,4 @@ public sealed class ProductService(FunctionalMsSqlDb db)
 }
 
 /// <summary>Dapper projection — lightweight product summary.</summary>
-internal sealed record ProductSummary(string Name, string Category, decimal Price);
+public sealed record ProductSummary(string Name, string Category, decimal Price);

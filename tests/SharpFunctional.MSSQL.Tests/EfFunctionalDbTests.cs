@@ -193,6 +193,25 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
     // --- SaveAsync ---
 
     [Fact]
+    public async Task SaveAsync_WithNewlyAddedTrackedEntity_ShouldPersistInsert()
+    {
+        // Arrange
+        var entity = new TestEntity { Name = "Inserted", Price = 12.5m };
+        var ef = new EfFunctionalDb(_dbContext).WithTracking();
+        var addResult = await ef.AddAsync(entity, TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await ef.SaveAsync(entity, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(addResult.IsSucc);
+        Assert.True(result.IsSucc);
+        Assert.True(entity.Id > 0);
+        var inserted = await _dbContext.TestEntities.FindAsync([entity.Id], TestContext.Current.CancellationToken);
+        Assert.Equal("Inserted", inserted!.Name);
+    }
+
+    [Fact]
     public async Task SaveAsync_WithTrackedEntity_ShouldPersistChanges()
     {
         // Arrange
