@@ -1,6 +1,8 @@
 using LanguageExt;
 using LanguageExt.Common;
 using SharpFunctional.MsSql;
+using SharpFunctional.MsSql.Common;
+using SharpFunctional.MsSql.Ef;
 using SharpFunctional.MsSql.DiExample.Models;
 using static LanguageExt.Prelude;
 
@@ -30,6 +32,31 @@ public sealed class ProductService(FunctionalMsSqlDb db)
             "SELECT Name, Category, Price FROM Products ORDER BY Name",
             new { },
             ct);
+
+    /// <summary>Returns a paginated set of products matching a category filter.</summary>
+    public Task<Fin<QueryResults<Product>>> GetPaginatedAsync(
+        string category,
+        int pageNumber = 1,
+        int pageSize = 10,
+        CancellationToken ct = default)
+        => db.Ef().FindPaginatedAsync<Product>(p => p.Category == category, pageNumber, pageSize, ct);
+
+    /// <summary>Returns products matching a reusable query specification.</summary>
+    public Task<Option<IReadOnlyList<Product>>> GetBySpecificationAsync(
+        IQuerySpecification<Product> specification,
+        CancellationToken ct = default)
+        => db.Ef().FindAsync(specification, ct);
+
+    /// <summary>Inserts multiple products in configurable batches.</summary>
+    public Task<Fin<int>> BatchInsertAsync(
+        IEnumerable<Product> products,
+        int batchSize = 100,
+        CancellationToken ct = default)
+        => db.Ef().InsertBatchAsync(products, batchSize, ct);
+
+    /// <summary>Streams all products matching a predicate without full materialization.</summary>
+    public IAsyncEnumerable<Product> StreamAllAsync(CancellationToken ct = default)
+        => db.Ef().StreamAsync<Product>(p => p.Id > 0, ct);
 
     /// <summary>
     /// Adds a product and saves in a transaction.

@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SharpFunctional.MsSql;
 using SharpFunctional.MsSql.Common;
 using SharpFunctional.MsSql.DependencyInjection;
+using SharpFunctional.MsSql.Ef;
 using SharpFunctional.MsSql.Example.Data;
 using SharpFunctional.MsSql.Example.Models;
 using SharpFunctional.MsSql.Transactions;
@@ -395,7 +396,197 @@ afterDelete.IfSome(_ => Console.WriteLine("  ✗ Unexpected: product still exist
 Console.WriteLine();
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 10. Final summary via Dapper
+// 10. Paginated queries — FindPaginatedAsync with QueryResults<T>
+// ═══════════════════════════════════════════════════════════════════════════
+
+Console.WriteLine("── Paginated Queries ───────────────────────────");
+Console.WriteLine();
+
+Console.WriteLine("▸ FindPaginatedAsync: page 1 of products (3 per page):");
+var page1 = await db.Ef().FindPaginatedAsync<Product>(p => p.Id > 0, pageNumber: 1, pageSize: 3);
+
+page1.IfSucc(page =>
+{
+    Console.WriteLine($"  Page {page.PageNumber}/{page.TotalPages} (total: {page.TotalCount})");
+    Console.WriteLine($"  HasPreviousPage: {page.HasPreviousPage} | HasNextPage: {page.HasNextPage}");
+    foreach (var p in page.Items)
+        Console.WriteLine($"    - {p}");
+});
+page1.IfFail(err => Console.WriteLine($"  ✗ Error: {err}"));
+
+Console.WriteLine();
+
+Console.WriteLine("▸ FindPaginatedAsync: page 2 of products (3 per page):");
+var page2 = await db.Ef().FindPaginatedAsync<Product>(p => p.Id > 0, pageNumber: 2, pageSize: 3);
+
+page2.IfSucc(page =>
+{
+    Console.WriteLine($"  Page {page.PageNumber}/{page.TotalPages} (total: {page.TotalCount})");
+    Console.WriteLine($"  HasPreviousPage: {page.HasPreviousPage} | HasNextPage: {page.HasNextPage}");
+    foreach (var p in page.Items)
+        Console.WriteLine($"    - {p}");
+});
+
+Console.WriteLine();
+
+Console.WriteLine("▸ Map paginated results to summary strings:");
+page1.IfSucc(page =>
+{
+    var mapped = page.Map(p => $"{p.Name}: €{p.Price:F2}");
+    foreach (var s in mapped.Items)
+        Console.WriteLine($"    - {s}");
+});
+
+Console.WriteLine();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 11. Specification pattern — QuerySpecification<T> + FindAsync
+// ═══════════════════════════════════════════════════════════════════════════
+
+Console.WriteLine("── Specification Pattern ───────────────────────");
+Console.WriteLine();
+
+Console.WriteLine("▸ Query peripherals sorted by price (desc), take top 3:");
+var peripheralSpec = new QuerySpecification<Product>(p => p.Category == "Peripherals")
+    .SetOrderByDescending(p => (object)p.Price)
+    .SetTake(3);
+
+var specResults = await db.Ef().FindAsync(peripheralSpec);
+
+specResults.IfSome(list =>
+{
+    Console.WriteLine($"  Found {list.Count} product(s):");
+    foreach (var p in list)
+        Console.WriteLine($"    - {p}");
+});
+specResults.IfNone(() => Console.WriteLine("  No results."));
+
+Console.WriteLine();
+
+Console.WriteLine("▸ Query expensive products with skip/take:");
+var expensiveSpec = new QuerySpecification<Product>(p => p.Price > 50m)
+    .SetOrderBy(p => (object)p.Name)
+    .SetSkip(1)
+    .SetTake(3);
+
+var expensiveResults = await db.Ef().FindAsync(expensiveSpec);
+expensiveResults.IfSome(list =>
+{
+    Console.WriteLine($"  Found {list.Count} product(s) (skipped 1):");
+    foreach (var p in list)
+        Console.WriteLine($"    - {p}");
+});
+
+Console.WriteLine();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 12. Batch operations — InsertBatchAsync, UpdateBatchAsync, DeleteBatchAsync
+// ═══════════════════════════════════════════════════════════════════════════
+
+Console.WriteLine("── Batch Operations ────────────────────────────");
+Console.WriteLine();
+
+Console.WriteLine("▸ InsertBatchAsync: add 5 new accessories...");
+var accessories = Enumerable.Range(1, 5)
+    .Select(i => new Product { Name = $"Accessory {i}", Category = "Accessories", Price = 9.99m + i, Stock = 50 * i })
+    .ToList();
+
+var insertResult = await db.Ef().InsertBatchAsync(accessories, batchSize: 2);
+insertResult.IfSucc(count => Console.WriteLine($"  ✓ Inserted {count} state entries in batches of 2"));
+insertResult.IfFail(err => Console.WriteLine($"  ✗ Error: {err}"));
+
+Console.WriteLine();
+
+Console.WriteLine("▸ UpdateBatchAsync: raise accessory prices by 20%...");
+var accessoryList = await db.Ef().WithTracking().QueryAsync<Product>(p => p.Category == "Accessories");
+foreach (var a in accessoryList)
+    a.Price *= 1.20m;
+
+var updateResult = await db.Ef().WithTracking().UpdateBatchAsync(accessoryList.ToList(), batchSize: 3);
+updateResult.IfSucc(count => Console.WriteLine($"  ✓ Updated {count} state entries"));
+updateResult.IfFail(err => Console.WriteLine($"  ✗ Error: {err}"));
+
+Console.WriteLine();
+
+Console.WriteLine("▸ DeleteBatchAsync: remove all accessories...");
+var deleteResult2 = await db.Ef().DeleteBatchAsync<Product>(p => p.Category == "Accessories", batchSize: 3);
+deleteResult2.IfSucc(count => Console.WriteLine($"  ✓ Deleted {count} accessory products"));
+deleteResult2.IfFail(err => Console.WriteLine($"  ✗ Error: {err}"));
+
+Console.WriteLine();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 13. Streaming — StreamAsync with IAsyncEnumerable<T>
+// ═══════════════════════════════════════════════════════════════════════════
+
+Console.WriteLine("── Streaming ───────────────────────────────────");
+Console.WriteLine();
+
+Console.WriteLine("▸ StreamAsync: iterate products without full materialization:");
+var streamCount = 0;
+await foreach (var product in db.Ef().StreamAsync<Product>(p => p.Id > 0))
+{
+    streamCount++;
+    Console.WriteLine($"  [{streamCount}] {product.Name} — €{product.Price:F2}");
+}
+Console.WriteLine($"  ✓ Streamed {streamCount} product(s)");
+
+Console.WriteLine();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 14. Circuit breaker — resilient database access
+// ═══════════════════════════════════════════════════════════════════════════
+
+Console.WriteLine("── Circuit Breaker ─────────────────────────────");
+Console.WriteLine();
+
+var breaker = new CircuitBreaker(new CircuitBreakerOptions
+{
+    FailureThreshold = 3,
+    OpenDuration = TimeSpan.FromSeconds(5),
+    SuccessThresholdInHalfOpen = 2,
+});
+
+Console.WriteLine($"  Initial state: {breaker.State}");
+
+Console.WriteLine("▸ Execute successful query through circuit breaker:");
+var cbResult = await breaker.ExecuteAsync(async ct =>
+{
+    var count = await db.Ef().CountAsync<Product>(p => p.Stock > 0, ct);
+    return count;
+});
+
+cbResult.IfSucc(count => Console.WriteLine($"  ✓ Products in stock: {count} (state: {breaker.State})"));
+cbResult.IfFail(err => Console.WriteLine($"  ✗ Error: {err}"));
+
+Console.WriteLine();
+
+Console.WriteLine("▸ Simulate failures to trip the circuit breaker:");
+for (var i = 0; i < 3; i++)
+{
+    _ = await breaker.ExecuteAsync<int>(ct =>
+        Task.FromResult(FinFail<int>(LanguageExt.Common.Error.New("Simulated DB failure"))));
+    Console.WriteLine($"  Failure #{i + 1} — state: {breaker.State}, failures: {breaker.FailureCount}");
+}
+
+Console.WriteLine();
+
+Console.WriteLine("▸ Attempt query while circuit is open:");
+var rejected = await breaker.ExecuteAsync(async ct =>
+    await db.Ef().CountAsync<Product>(p => p.Id > 0, ct));
+
+rejected.IfFail(err => Console.WriteLine($"  ✗ Rejected: {err}"));
+
+Console.WriteLine();
+
+Console.WriteLine("▸ Reset circuit breaker:");
+breaker.Reset();
+Console.WriteLine($"  ✓ State after reset: {breaker.State}");
+
+Console.WriteLine();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 15. Final summary via Dapper
 // ═══════════════════════════════════════════════════════════════════════════
 
 Console.WriteLine("── Final Summary (Dapper) ──────────────────────");
@@ -417,7 +608,7 @@ stats.IfSome(s => Console.WriteLine(
 Console.WriteLine();
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 11. Dependency Injection — register and resolve via IServiceCollection
+// 16. Dependency Injection — register and resolve via IServiceCollection
 // ═══════════════════════════════════════════════════════════════════════════
 
 Console.WriteLine("── Dependency Injection ────────────────────────");

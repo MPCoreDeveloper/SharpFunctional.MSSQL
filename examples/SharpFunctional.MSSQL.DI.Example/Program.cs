@@ -22,6 +22,7 @@ using SharpFunctional.MsSql.DependencyInjection;
 using SharpFunctional.MsSql.DiExample.Data;
 using SharpFunctional.MsSql.DiExample.Models;
 using SharpFunctional.MsSql.DiExample.Services;
+using SharpFunctional.MsSql.Ef;
 
 const string connectionString =
     "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=SharpFunctionalDiExample;" +
@@ -99,6 +100,50 @@ await using (var scope = efProvider.CreateAsyncScope())
     var count = await svc.CountInStockAsync();
     count.IfSucc(n  => Console.WriteLine($"  In stock: {n} product(s)"));
     count.IfFail(err => Console.WriteLine($"  Error: {err}"));
+
+    Console.WriteLine();
+    Console.WriteLine("▸ Paginated query — peripherals page 1 (2 per page):");
+    var page = await svc.GetPaginatedAsync("Peripherals", pageNumber: 1, pageSize: 2);
+    page.IfSucc(results =>
+    {
+        Console.WriteLine($"  Page {results.PageNumber}/{results.TotalPages} (total: {results.TotalCount})");
+        foreach (var p in results.Items)
+            Console.WriteLine($"    {p}");
+    });
+
+    Console.WriteLine();
+    Console.WriteLine("▸ Specification query — products > €100 sorted by name:");
+    var spec = new QuerySpecification<Product>(p => p.Price > 100m)
+        .SetOrderBy(p => (object)p.Name);
+    var specResults = await svc.GetBySpecificationAsync(spec);
+    specResults.IfSome(list =>
+    {
+        Console.WriteLine($"  Found {list.Count} product(s):");
+        foreach (var p in list)
+            Console.WriteLine($"    {p}");
+    });
+
+    Console.WriteLine();
+    Console.WriteLine("▸ Batch insert — 3 audio products:");
+    Product[] audioProducts =
+    [
+        new() { Name = "Bluetooth Speaker", Category = "Audio", Price = 59.99m, Stock = 40 },
+        new() { Name = "DAC Amplifier",     Category = "Audio", Price = 149.99m, Stock = 15 },
+        new() { Name = "Studio Monitors",   Category = "Audio", Price = 299.99m, Stock = 10 },
+    ];
+    var batchResult = await svc.BatchInsertAsync(audioProducts, batchSize: 2);
+    batchResult.IfSucc(inserted => Console.WriteLine($"  ✓ Inserted {inserted} state entries"));
+    batchResult.IfFail(err => Console.WriteLine($"  ✗ Error: {err}"));
+
+    Console.WriteLine();
+    Console.WriteLine("▸ Stream all products:");
+    var streamCount = 0;
+    await foreach (var p in svc.StreamAllAsync())
+    {
+        streamCount++;
+        Console.WriteLine($"    [{streamCount}] {p}");
+    }
+    Console.WriteLine($"  ✓ Streamed {streamCount} product(s)");
 }
 
 Console.WriteLine();
@@ -169,6 +214,21 @@ await using (var scope = combinedProvider.CreateAsyncScope())
     var summaries = await svc.GetSummariesAsync();
     foreach (var s in summaries)
         Console.WriteLine($"  {s.Name} ({s.Category}) — €{s.Price:F2}");
+
+    Console.WriteLine();
+    Console.WriteLine("▸ Circuit breaker — wrap a query with resilience:");
+    var breaker = new CircuitBreaker(new CircuitBreakerOptions
+    {
+        FailureThreshold = 3,
+        OpenDuration = TimeSpan.FromSeconds(10),
+        SuccessThresholdInHalfOpen = 1,
+    });
+
+    var cbResult = await breaker.ExecuteAsync(async ct =>
+        await svc.CountInStockAsync(ct));
+
+    cbResult.IfSucc(n => Console.WriteLine($"  ✓ In stock: {n} (circuit: {breaker.State})"));
+    cbResult.IfFail(err => Console.WriteLine($"  ✗ Error: {err}"));
 }
 
 Console.WriteLine();
