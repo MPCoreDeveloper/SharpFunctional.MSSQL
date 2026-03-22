@@ -35,6 +35,11 @@ This package helps you build SQL Server data access with:
 - structured logging
 - built-in retry/timeout configuration
 - OpenTelemetry tracing hooks
+- server-side pagination with navigation metadata
+- specification pattern for reusable queries
+- batch insert/update/delete operations
+- `IAsyncEnumerable<T>` streaming for large data sets
+- circuit breaker resilience pattern
 
 ---
 
@@ -404,11 +409,59 @@ Test suite uses `xUnit v3` and includes LocalDB-backed integration tests.
 
 ## Repository structure
 
-- `src/` - library source
-- `tests/` - test projects
-- `examples/` - runnable sample app
-- `docs/` - extra docs
-- `.github/` - CI/CD and repo automation
+- `src/` — library source
+- `tests/` — xUnit v3 test suite (150+ tests)
+- `examples/` — runnable sample applications:
+  - `SharpFunctional.MSSQL.Example` — full-featured console app (16 sections covering CRUD, aggregates, functional chaining, Dapper, transactions, pagination, specification pattern, batch operations, streaming, circuit breaker, and DI)
+  - `SharpFunctional.MSSQL.DI.Example` — dependency injection example with `ProductService` demonstrating all three registration overloads, pagination, specification queries, batch inserts, streaming, and circuit breaker
+- `docs/` — additional documentation
+- `.github/` — CI/CD and repo automation
+- `CHANGELOG.md` — version history
+- `MIGRATION_v1_to_v2.md` — upgrade guide from v1 to v2
+
+---
+
+## Examples
+
+Two runnable console applications demonstrate every feature of the library:
+
+### Full example (`examples/SharpFunctional.MSSQL.Example`)
+
+A comprehensive 16-section walkthrough covering:
+
+| Section | Feature |
+|---------|---------|
+| 1–2 | Database setup and seed data (customers, products, orders) |
+| 3 | EF Core queries — `GetByIdAsync`, `FindOneAsync`, `QueryAsync` |
+| 4 | Aggregates — `CountAsync`, `AnyAsync` |
+| 5 | Functional chaining — `Option → Seq`, `Option → Option`, `Seq → Seq` |
+| 6 | Dapper queries — raw SQL, single result, joins |
+| 7–8 | Transactions and `InTransactionMapAsync` |
+| 9 | Delete and verify |
+| 10 | **Paginated queries** — `FindPaginatedAsync` with `QueryResults<T>.Map` |
+| 11 | **Specification pattern** — `QuerySpecification<T>` with ordering and skip/take |
+| 12 | **Batch operations** — `InsertBatchAsync`, `UpdateBatchAsync`, `DeleteBatchAsync` |
+| 13 | **Streaming** — `StreamAsync<T>` with `await foreach` |
+| 14 | **Circuit breaker** — success, trip to Open, rejection, reset |
+| 15–16 | Final summary and DI container demo |
+
+### DI example (`examples/SharpFunctional.MSSQL.DI.Example`)
+
+Demonstrates `FunctionalMsSqlDb` registration and consumption via constructor injection:
+
+- All three registration overloads: EF-only, Dapper-only, EF + Dapper combined
+- `ProductService` with methods for: `GetByIdAsync`, `GetByCategoryAsync`, `CountInStockAsync`, `GetSummariesAsync`, `GetPaginatedAsync`, `GetBySpecificationAsync`, `BatchInsertAsync`, `StreamAllAsync`, `AddProductAsync`
+- Circuit breaker integration wrapping service calls
+
+```bash
+# Run the full example (requires SQL Server LocalDB)
+cd examples/SharpFunctional.MSSQL.Example
+dotnet run
+
+# Run the DI example
+cd examples/SharpFunctional.MSSQL.DI.Example
+dotnet run
+```
 
 ---
 
