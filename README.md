@@ -4,13 +4,15 @@
   <img src="sharpfunctional_mssql_logo_512.png" alt="SharpFunctional.MSSQL" width="120" />
 </p>
 
-[![NuGet](https://img.shields.io/nuget/v/SharpFunctional.MSSQL.svg)](https://www.nuget.org/packages/SharpFunctional.MSSQL)
-[![NuGet Downloads](https://img.shields.io/nuget/dt/SharpFunctional.MSSQL.svg)](https://www.nuget.org/packages/SharpFunctional.MSSQL)
+[![NuGet](https://img.shields.io/nuget/v/SharpFunctional.MsSql.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/SharpFunctional.MsSql.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
 [![CI](https://github.com/MPCoreDeveloper/SharpFunctional.MSSQL/actions/workflows/ci.yml/badge.svg)](https://github.com/MPCoreDeveloper/SharpFunctional.MSSQL/actions/workflows/ci.yml)
 [![NuGet Publish](https://github.com/MPCoreDeveloper/SharpFunctional.MSSQL/actions/workflows/publish-nuget.yml/badge.svg)](https://github.com/MPCoreDeveloper/SharpFunctional.MSSQL/actions/workflows/publish-nuget.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
-[![C%23](https://img.shields.io/badge/C%23-14-239120)](https://learn.microsoft.com/dotnet/csharp/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download)
+[![NuGet](https://img.shields.io/badge/NuGet-1.0.0-blue.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
+[![Tests](https://img.shields.io/badge/Tests-57-brightgreen.svg)](#testing)
+[![C#](https://img.shields.io/badge/C%23-14-purple.svg)](https://learn.microsoft.com/en-us/dotnet/csharp/)
 
 [English](README.md) | [Nederlands](docs/README.nl.md)
 
