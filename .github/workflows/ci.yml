@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore SharpFunctional.MSSQL.slnx
+
+      - name: Build
+        run: dotnet build SharpFunctional.MSSQL.slnx --configuration Release --no-restore
+
+      - name: Pack
+        run: dotnet pack src/SharpFunctional.MSSQL/SharpFunctional.MSSQL.csproj --configuration Release --no-build --output ./artifacts/packages
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts/packages/*
