@@ -1,5 +1,6 @@
 using LanguageExt;
 using Microsoft.EntityFrameworkCore;
+using SharpFunctional.MsSql.Common;
 using SharpFunctional.MsSql.Ef;
 using Xunit;
 
@@ -363,5 +364,273 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
         // Assert
         Assert.True(result.IsSome);
         Assert.Single(_dbContext.ChangeTracker.Entries());
+    }
+
+    // --- FindPaginatedAsync ---
+
+    [Fact]
+    public async Task FindPaginatedAsync_WithMultiplePages_ShouldReturnCorrectPage()
+    {
+        // Arrange
+        for (var i = 1; i <= 10; i++)
+        {
+            _dbContext.TestEntities.Add(new TestEntity { Name = $"Page{i}", Price = i });
+        }
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var ef = new EfFunctionalDb(_dbContext);
+
+        // Act
+        var result = await ef.FindPaginatedAsync<TestEntity>(e => e.Name.StartsWith("Page"), pageNumber: 2, pageSize: 3, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSucc);
+        result.IfSucc(page =>
+        {
+            Assert.Equal(10, page.TotalCount);
+            Assert.Equal(2, page.PageNumber);
+            Assert.Equal(3, page.PageSize);
+            Assert.Equal(3, page.ItemsOnPage);
+            Assert.True(page.HasNextPage);
+            Assert.True(page.HasPreviousPage);
+        });
+    }
+
+    [Fact]
+    public async Task FindPaginatedAsync_BeyondLastPage_ShouldReturnEmptyItems()
+    {
+        // Arrange
+        _dbContext.TestEntities.Add(new TestEntity { Name = "Solo", Price = 1.0m });
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var ef = new EfFunctionalDb(_dbContext);
+
+        // Act
+        var result = await ef.FindPaginatedAsync<TestEntity>(e => e.Name == "Solo", pageNumber: 5, pageSize: 10, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSucc);
+        result.IfSucc(page =>
+        {
+            Assert.Equal(1, page.TotalCount);
+            Assert.Empty(page.Items);
+            Assert.False(page.HasNextPage);
+        });
+    }
+
+    [Fact]
+    public async Task FindPaginatedAsync_WithEmptyDataset_ShouldReturnZeroTotal()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(_dbContext);
+
+        // Act
+        var result = await ef.FindPaginatedAsync<TestEntity>(e => e.Name == "NonExistent", cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSucc);
+        result.IfSucc(page =>
+        {
+            Assert.Equal(0, page.TotalCount);
+            Assert.Empty(page.Items);
+            Assert.Equal(0, page.TotalPages);
+        });
+    }
+
+    [Fact]
+    public async Task FindPaginatedAsync_WithNullPredicate_ShouldReturnFail()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(_dbContext);
+
+        // Act
+        var result = await ef.FindPaginatedAsync<TestEntity>(null!, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsFail);
+    }
+
+    [Fact]
+    public async Task FindPaginatedAsync_WithNullContext_ShouldReturnFail()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(null);
+
+        // Act
+        var result = await ef.FindPaginatedAsync<TestEntity>(e => e.Id > 0, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsFail);
+    }
+
+    // --- FindAsync (specification) ---
+
+    [Fact]
+    public async Task FindAsync_WithSpecification_ShouldFilterEntities()
+    {
+        // Arrange
+        _dbContext.TestEntities.Add(new TestEntity { Name = "SpecA", Price = 10.0m });
+        _dbContext.TestEntities.Add(new TestEntity { Name = "SpecB", Price = 20.0m });
+        _dbContext.TestEntities.Add(new TestEntity { Name = "Other", Price = 30.0m });
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var ef = new EfFunctionalDb(_dbContext);
+        var spec = new QuerySpecification<TestEntity>(e => e.Name.StartsWith("Spec"));
+
+        // Act
+        var result = await ef.FindAsync(spec, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSome);
+        result.IfSome(items => Assert.Equal(2, items.Count));
+    }
+
+    [Fact]
+    public async Task FindAsync_WithSpecificationSkipAndTake_ShouldApplyPaging()
+    {
+        // Arrange
+        for (var i = 1; i <= 5; i++)
+        {
+            _dbContext.TestEntities.Add(new TestEntity { Name = $"Paged{i}", Price = i });
+        }
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var ef = new EfFunctionalDb(_dbContext);
+        var spec = new QuerySpecification<TestEntity>(e => e.Name.StartsWith("Paged"))
+            .SetOrderBy(e => e.Price)
+            .SetSkip(2)
+            .SetTake(2);
+
+        // Act
+        var result = await ef.FindAsync(spec, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSome);
+        result.IfSome(items => Assert.Equal(2, items.Count));
+    }
+
+    [Fact]
+    public async Task FindAsync_WithSpecificationAndNullContext_ShouldReturnNone()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(null);
+        var spec = new QuerySpecification<TestEntity>(e => e.Id > 0);
+
+        // Act
+        var result = await ef.FindAsync(spec, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsNone);
+    }
+
+    // --- InsertBatchAsync ---
+
+    [Fact]
+    public async Task InsertBatchAsync_WithMultipleEntities_ShouldInsertAll()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(_dbContext);
+        var entities = Enumerable.Range(1, 10).Select(i => new TestEntity { Name = $"Batch{i}", Price = i }).ToList();
+
+        // Act
+        var result = await ef.InsertBatchAsync(entities, batchSize: 3, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSucc);
+        result.IfSucc(count => Assert.Equal(10, count));
+        Assert.Equal(10, _dbContext.TestEntities.Count(e => e.Name.StartsWith("Batch")));
+    }
+
+    [Fact]
+    public async Task InsertBatchAsync_WithEmptyCollection_ShouldReturnZero()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(_dbContext);
+
+        // Act
+        var result = await ef.InsertBatchAsync(Enumerable.Empty<TestEntity>(), cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSucc);
+        result.IfSucc(count => Assert.Equal(0, count));
+    }
+
+    [Fact]
+    public async Task InsertBatchAsync_WithNullEntities_ShouldReturnFail()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(_dbContext);
+
+        // Act
+        var result = await ef.InsertBatchAsync<TestEntity>(null!, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsFail);
+    }
+
+    [Fact]
+    public async Task InsertBatchAsync_WithNullContext_ShouldReturnFail()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(null);
+
+        // Act
+        var result = await ef.InsertBatchAsync([new TestEntity { Name = "X", Price = 1 }], cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsFail);
+    }
+
+    // --- StreamAsync ---
+
+    [Fact]
+    public async Task StreamAsync_WithMatchingEntities_ShouldYieldAll()
+    {
+        // Arrange
+        _dbContext.TestEntities.Add(new TestEntity { Name = "Stream1", Price = 1.0m });
+        _dbContext.TestEntities.Add(new TestEntity { Name = "Stream2", Price = 2.0m });
+        _dbContext.TestEntities.Add(new TestEntity { Name = "Other", Price = 3.0m });
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var ef = new EfFunctionalDb(_dbContext);
+
+        // Act
+        var items = new List<TestEntity>();
+        await foreach (var entity in ef.StreamAsync<TestEntity>(e => e.Name.StartsWith("Stream"), TestContext.Current.CancellationToken))
+        {
+            items.Add(entity);
+        }
+
+        // Assert
+        Assert.Equal(2, items.Count);
+    }
+
+    [Fact]
+    public async Task StreamAsync_WithNoMatch_ShouldYieldNothing()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(_dbContext);
+
+        // Act
+        var items = new List<TestEntity>();
+        await foreach (var entity in ef.StreamAsync<TestEntity>(e => e.Name == "Ghost", TestContext.Current.CancellationToken))
+        {
+            items.Add(entity);
+        }
+
+        // Assert
+        Assert.Empty(items);
+    }
+
+    [Fact]
+    public async Task StreamAsync_WithNullContext_ShouldYieldNothing()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(null);
+
+        // Act
+        var items = new List<TestEntity>();
+        await foreach (var entity in ef.StreamAsync<TestEntity>(e => e.Id > 0, TestContext.Current.CancellationToken))
+        {
+            items.Add(entity);
+        }
+
+        // Assert
+        Assert.Empty(items);
     }
 }
