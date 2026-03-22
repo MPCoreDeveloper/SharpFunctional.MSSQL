@@ -291,6 +291,77 @@ public sealed class DapperFunctionalDb(
         }
     }
 
+    /// <summary>
+    /// Executes a stored procedure that returns paginated results.
+    /// The stored procedure must accept <c>@PageNumber</c> and <c>@PageSize</c> parameters
+    /// and return two result sets: the page items and a scalar total count.
+    /// </summary>
+    /// <typeparam name="T">The result item type.</typeparam>
+    /// <param name="procName">The name of the stored procedure to execute.</param>
+    /// <param name="param">Parameters to pass to the stored procedure (excluding pagination parameters).</param>
+    /// <param name="pageNumber">The 1-based page number. Values less than 1 are clamped to 1.</param>
+    /// <param name="pageSize">Items per page (1–1000). Values outside this range are clamped.</param>
+    /// <param name="cancellationToken">Token used to cancel the query.</param>
+    /// <returns>A paginated result set or a failure when the Dapper backend is not configured.</returns>
+    public async Task<Fin<QueryResults<T>>> ExecuteStoredProcPaginatedAsync<T>(
+        string procName,
+        object param,
+        int pageNumber = 1,
+        int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        if (Connection is null)
+        {
+            return FinFail<QueryResults<T>>(Error.New("Dapper backend is not configured."));
+        }
+
+        if (string.IsNullOrWhiteSpace(procName))
+        {
+            return FinFail<QueryResults<T>>(Error.New("Stored procedure name cannot be empty."));
+        }
+
+        pageNumber = Math.Max(1, pageNumber);
+        pageSize = Math.Clamp(pageSize, 1, 1000);
+
+        using var activity = StartDapperActivity("dapper.storedproc.paginated", procName);
+
+        try
+        {
+            Logger?.LogDebug("Executing paginated stored procedure {ProcName} page {PageNumber} size {PageSize}", procName, pageNumber, pageSize);
+            var result = await ExecuteWithRetryAsync(
+                    async ct =>
+                    {
+                        await EnsureOpenAsync(Connection, ct).ConfigureAwait(false);
+                        var command = new CommandDefinition(
+                            procName,
+                            param,
+                            transaction: Owner.AmbientTransaction,
+                            commandTimeout: Options.CommandTimeoutSeconds,
+                            commandType: CommandType.StoredProcedure,
+                            cancellationToken: ct);
+
+                        using var multi = await Connection.QueryMultipleAsync(command).ConfigureAwait(false);
+                        var items = (await multi.ReadAsync<T>().ConfigureAwait(false)).ToList();
+                        var totalCount = await multi.ReadSingleAsync<int>().ConfigureAwait(false);
+                        return (items, totalCount);
+                    },
+                    cancellationToken,
+                    procName)
+                .ConfigureAwait(false);
+
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+            return new QueryResults<T>(result.items.AsReadOnly(), result.totalCount, pageNumber, pageSize);
+        }
+        catch (Exception exception)
+        {
+            Logger?.LogError(exception, "Paginated stored procedure {ProcName} failed", procName);
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
+            activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
+            return FinFail<QueryResults<T>>(Error.New(exception));
+        }
+    }
+
     private async Task<T> ExecuteWithRetryAsync<T>(
         Func<CancellationToken, Task<T>> action,
         CancellationToken cancellationToken,

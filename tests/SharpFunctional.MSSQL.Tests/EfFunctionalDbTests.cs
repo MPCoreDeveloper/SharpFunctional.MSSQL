@@ -633,4 +633,133 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
         // Assert
         Assert.Empty(items);
     }
+
+    // --- UpdateBatchAsync ---
+
+    [Fact]
+    public async Task UpdateBatchAsync_WithTrackedEntities_ShouldUpdateAll()
+    {
+        // Arrange
+        var entities = Enumerable.Range(1, 5).Select(i => new TestEntity { Name = $"UpdBatch{i}", Price = i }).ToList();
+        _dbContext.TestEntities.AddRange(entities);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        foreach (var e in entities) e.Price += 100;
+        var ef = new EfFunctionalDb(_dbContext);
+
+        // Act
+        var result = await ef.UpdateBatchAsync(entities, batchSize: 2, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSucc);
+        result.IfSucc(count => Assert.Equal(5, count));
+        var prices = _dbContext.TestEntities
+            .Where(e => e.Name.StartsWith("UpdBatch"))
+            .Select(e => e.Price)
+            .ToList();
+        Assert.All(prices, p => Assert.True(p > 100));
+    }
+
+    [Fact]
+    public async Task UpdateBatchAsync_WithEmptyCollection_ShouldReturnZero()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(_dbContext);
+
+        // Act
+        var result = await ef.UpdateBatchAsync(Enumerable.Empty<TestEntity>(), cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSucc);
+        result.IfSucc(count => Assert.Equal(0, count));
+    }
+
+    [Fact]
+    public async Task UpdateBatchAsync_WithNullEntities_ShouldReturnFail()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(_dbContext);
+
+        // Act
+        var result = await ef.UpdateBatchAsync<TestEntity>(null!, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsFail);
+    }
+
+    [Fact]
+    public async Task UpdateBatchAsync_WithNullContext_ShouldReturnFail()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(null);
+
+        // Act
+        var result = await ef.UpdateBatchAsync([new TestEntity { Name = "X", Price = 1 }], cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsFail);
+    }
+
+    // --- DeleteBatchAsync ---
+
+    [Fact]
+    public async Task DeleteBatchAsync_WithMatchingEntities_ShouldDeleteAll()
+    {
+        // Arrange
+        for (var i = 1; i <= 6; i++)
+        {
+            _dbContext.TestEntities.Add(new TestEntity { Name = $"DelBatch{i}", Price = i });
+        }
+        _dbContext.TestEntities.Add(new TestEntity { Name = "KeepMe", Price = 99 });
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var ef = new EfFunctionalDb(_dbContext);
+
+        // Act
+        var result = await ef.DeleteBatchAsync<TestEntity>(e => e.Name.StartsWith("DelBatch"), batchSize: 2, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSucc);
+        result.IfSucc(count => Assert.Equal(6, count));
+        Assert.False(_dbContext.TestEntities.Any(e => e.Name.StartsWith("DelBatch")));
+        Assert.True(_dbContext.TestEntities.Any(e => e.Name == "KeepMe"));
+    }
+
+    [Fact]
+    public async Task DeleteBatchAsync_WithNoMatch_ShouldReturnZero()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(_dbContext);
+
+        // Act
+        var result = await ef.DeleteBatchAsync<TestEntity>(e => e.Name == "NonExistent", cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSucc);
+        result.IfSucc(count => Assert.Equal(0, count));
+    }
+
+    [Fact]
+    public async Task DeleteBatchAsync_WithNullPredicate_ShouldReturnFail()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(_dbContext);
+
+        // Act
+        var result = await ef.DeleteBatchAsync<TestEntity>(null!, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsFail);
+    }
+
+    [Fact]
+    public async Task DeleteBatchAsync_WithNullContext_ShouldReturnFail()
+    {
+        // Arrange
+        var ef = new EfFunctionalDb(null);
+
+        // Act
+        var result = await ef.DeleteBatchAsync<TestEntity>(e => e.Id > 0, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsFail);
+    }
 }

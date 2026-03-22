@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using LanguageExt;
@@ -299,6 +300,8 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
             return Option<IReadOnlyList<T>>.None;
         }
 
+        using var activity = StartEfActivity("ef.find.spec", typeof(T).Name);
+
         try
         {
             IQueryable<T> query = SetForQuery<T>(Context, TrackingEnabled);
@@ -331,10 +334,15 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
             }
 
             var results = await query.ToListAsync(cancellationToken).ConfigureAwait(false);
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.ItemCountTag, results.Count);
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
+            activity?.SetStatus(ActivityStatusCode.Ok);
             return results.AsReadOnly();
         }
         catch
         {
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
+            activity?.SetStatus(ActivityStatusCode.Error);
             return Option<IReadOnlyList<T>>.None;
         }
     }
@@ -368,6 +376,10 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
         pageNumber = Math.Max(1, pageNumber);
         pageSize = Math.Clamp(pageSize, 1, 1000);
 
+        using var activity = StartEfActivity("ef.find.paginated", typeof(T).Name);
+        activity?.SetTag(SharpFunctionalMsSqlDiagnostics.PageNumberTag, pageNumber);
+        activity?.SetTag(SharpFunctionalMsSqlDiagnostics.PageSizeTag, pageSize);
+
         try
         {
             var baseQuery = SetForQuery<T>(Context, TrackingEnabled).Where(predicate);
@@ -380,10 +392,15 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.ItemCountTag, items.Count);
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
+            activity?.SetStatus(ActivityStatusCode.Ok);
             return new QueryResults<T>(items.AsReadOnly(), totalCount, pageNumber, pageSize);
         }
         catch (Exception exception)
         {
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
+            activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
             return FinFail<QueryResults<T>>(Error.New(exception));
         }
     }
@@ -441,6 +458,9 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
 
         batchSize = Math.Max(1, batchSize);
 
+        using var activity = StartEfActivity("ef.batch.insert", typeof(T).Name);
+        activity?.SetTag(SharpFunctionalMsSqlDiagnostics.BatchSizeTag, batchSize);
+
         try
         {
             var totalInserted = 0;
@@ -452,10 +472,145 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
                 totalInserted += await Context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             }
 
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.ItemCountTag, totalInserted);
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
+            activity?.SetStatus(ActivityStatusCode.Ok);
             return totalInserted;
         }
         catch (Exception exception)
         {
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
+            activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
+            return FinFail<int>(Error.New(exception));
+        }
+    }
+
+    /// <summary>
+    /// Updates multiple already-tracked entities in configurable batches.
+    /// Each batch is saved in a single <see cref="DbContext.SaveChangesAsync(CancellationToken)"/> call.
+    /// Entities that are not tracked by the context are attached as <see cref="EntityState.Modified"/>.
+    /// </summary>
+    /// <typeparam name="T">The entity type.</typeparam>
+    /// <param name="entities">The entities to update.</param>
+    /// <param name="batchSize">Maximum entities per save. Values less than 1 are clamped to 1.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The total number of state entries written, or a failure.</returns>
+    public async Task<Fin<int>> UpdateBatchAsync<T>(
+        IEnumerable<T> entities,
+        int batchSize = 1000,
+        CancellationToken cancellationToken = default)
+        where T : class
+    {
+        if (Context is null)
+        {
+            return FinFail<int>(Error.New("EF backend is not configured."));
+        }
+
+        if (entities is null)
+        {
+            return FinFail<int>(Error.New("Entities collection cannot be null."));
+        }
+
+        batchSize = Math.Max(1, batchSize);
+
+        using var activity = StartEfActivity("ef.batch.update", typeof(T).Name);
+        activity?.SetTag(SharpFunctionalMsSqlDiagnostics.BatchSizeTag, batchSize);
+
+        try
+        {
+            var totalUpdated = 0;
+
+            foreach (var batch in Chunk(entities, batchSize))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                foreach (var entity in batch)
+                {
+                    var entry = Context.Entry(entity);
+                    if (entry.State == EntityState.Detached)
+                    {
+                        Context.Set<T>().Update(entity);
+                    }
+                }
+
+                totalUpdated += await Context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.ItemCountTag, totalUpdated);
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+            return totalUpdated;
+        }
+        catch (Exception exception)
+        {
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
+            activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
+            return FinFail<int>(Error.New(exception));
+        }
+    }
+
+    /// <summary>
+    /// Deletes entities matching a predicate in configurable batches.
+    /// Each batch is saved in a single <see cref="DbContext.SaveChangesAsync(CancellationToken)"/> call.
+    /// </summary>
+    /// <typeparam name="T">The entity type.</typeparam>
+    /// <param name="predicate">Filter expression identifying entities to delete.</param>
+    /// <param name="batchSize">Maximum entities per delete batch. Values less than 1 are clamped to 1.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The total number of entities deleted, or a failure.</returns>
+    public async Task<Fin<int>> DeleteBatchAsync<T>(
+        Expression<Func<T, bool>> predicate,
+        int batchSize = 1000,
+        CancellationToken cancellationToken = default)
+        where T : class
+    {
+        if (Context is null)
+        {
+            return FinFail<int>(Error.New("EF backend is not configured."));
+        }
+
+        if (predicate is null)
+        {
+            return FinFail<int>(Error.New("Predicate cannot be null."));
+        }
+
+        batchSize = Math.Max(1, batchSize);
+
+        using var activity = StartEfActivity("ef.batch.delete", typeof(T).Name);
+        activity?.SetTag(SharpFunctionalMsSqlDiagnostics.BatchSizeTag, batchSize);
+
+        try
+        {
+            var totalDeleted = 0;
+
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var batch = await Context.Set<T>()
+                    .Where(predicate)
+                    .Take(batchSize)
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (batch.Count == 0)
+                {
+                    break;
+                }
+
+                Context.Set<T>().RemoveRange(batch);
+                totalDeleted += await Context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.ItemCountTag, totalDeleted);
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+            return totalDeleted;
+        }
+        catch (Exception exception)
+        {
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
+            activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
             return FinFail<int>(Error.New(exception));
         }
     }
@@ -496,6 +651,16 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
 
         var equals = Expression.Equal(keyAccess, Expression.Constant(id, typeof(TId)));
         return Expression.Lambda<Func<T, bool>>(equals, entityParameter);
+    }
+
+    private static Activity? StartEfActivity(string operation, string entityType)
+    {
+        var activity = SharpFunctionalMsSqlDiagnostics.ActivitySource.StartActivity("sharpfunctional.mssql.ef");
+        activity?.SetTag(SharpFunctionalMsSqlDiagnostics.BackendTag, "ef");
+        activity?.SetTag(SharpFunctionalMsSqlDiagnostics.OperationTag, operation);
+        activity?.SetTag(SharpFunctionalMsSqlDiagnostics.EntityTypeTag, entityType);
+        activity?.SetTag("db.system", "mssql");
+        return activity;
     }
 
     private static IEnumerable<List<TItem>> Chunk<TItem>(IEnumerable<TItem> source, int size)
