@@ -98,6 +98,8 @@ This package helps you build SQL Server data access with:
 - `FunctionalExtensions` - async functional composition (`Bind`, `Map`)
 - `SqlExecutionOptions` - timeout/retry policy configuration
 - `SharpFunctionalMsSqlDiagnostics` - tracing constants and `ActivitySource`
+- `ServiceCollectionExtensions` - DI registration helpers
+- `FunctionalMsSqlDbOptions` - options class for DI configuration
 
 ---
 
@@ -105,6 +107,72 @@ This package helps you build SQL Server data access with:
 
 ```bash
 dotnet add package SharpFunctional.MSSQL
+```
+
+---
+
+## Dependency Injection
+
+`SharpFunctional.MSSQL` integrates with `Microsoft.Extensions.DependencyInjection` via `IOptions<FunctionalMsSqlDbOptions>`.
+`FunctionalMsSqlDb` is registered as **scoped** (one instance per request/scope).
+
+### EF Core only
+
+```csharp
+// AppDbContext must already be registered
+services.AddDbContext<AppDbContext>(opts => opts.UseSqlServer(connectionString));
+
+services.AddFunctionalMsSqlEf<AppDbContext>(opts =>
+{
+    opts.ExecutionOptions = new SqlExecutionOptions(commandTimeoutSeconds: 60);
+});
+```
+
+### Dapper only
+
+```csharp
+services.AddFunctionalMsSqlDapper(connectionString, opts =>
+{
+    opts.ExecutionOptions = new SqlExecutionOptions(
+        commandTimeoutSeconds: 30,
+        maxRetryCount: 3,
+        baseRetryDelay: TimeSpan.FromMilliseconds(200));
+});
+```
+
+### Both backends (EF + Dapper)
+
+```csharp
+services.AddDbContext<AppDbContext>(opts => opts.UseSqlServer(connectionString));
+
+// Pass connection string directly
+services.AddFunctionalMsSql<AppDbContext>(connectionString, opts =>
+{
+    opts.ExecutionOptions = new SqlExecutionOptions(commandTimeoutSeconds: 60, maxRetryCount: 3);
+});
+
+// Or put everything in the options delegate
+services.AddFunctionalMsSql<AppDbContext>(opts =>
+{
+    opts.ConnectionString = connectionString;
+    opts.ExecutionOptions = new SqlExecutionOptions(commandTimeoutSeconds: 60);
+});
+```
+
+### Inject and use
+
+```csharp
+public class UserService(FunctionalMsSqlDb db)
+{
+    public async Task<Option<User>> GetUserAsync(int id, CancellationToken ct)
+        => await db.Ef().GetByIdAsync<User, int>(id, ct);
+
+    public async Task<Seq<OrderDto>> GetOrdersAsync(int userId, CancellationToken ct)
+        => await db.Dapper().QueryAsync<OrderDto>(
+            "SELECT * FROM Orders WHERE UserId = @UserId",
+            new { UserId = userId },
+            ct);
+}
 ```
 
 ---
