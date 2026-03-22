@@ -55,22 +55,22 @@ public sealed class FunctionalMsSqlDb(
     SqlExecutionOptions? executionOptions = null,
     ILogger<FunctionalMsSqlDb>? logger = null)
 {
-    private readonly DbContext? _ef = dbContext;
-    private readonly IDbConnection? _connection = connection;
-    private readonly SqlExecutionOptions _executionOptions = executionOptions ?? SqlExecutionOptions.Default;
-    private readonly ILogger<FunctionalMsSqlDb>? _logger = logger;
+    private DbContext? EfContext => dbContext;
+    private IDbConnection? ConnectionDb => connection;
+    private SqlExecutionOptions Options => executionOptions ?? SqlExecutionOptions.Default;
+    private ILogger<FunctionalMsSqlDb>? Log => logger;
 
     internal IDbTransaction? AmbientTransaction { get; private set; }
 
     /// <summary>
     /// Returns the EF Core functional accessor. Default behavior is no-tracking.
     /// </summary>
-    public EfFunctionalDb Ef() => new(_ef);
+    public EfFunctionalDb Ef() => new(EfContext);
 
     /// <summary>
     /// Returns the Dapper functional accessor.
     /// </summary>
-    public DapperFunctionalDb Dapper() => new(_connection, this, _executionOptions, _logger);
+    public DapperFunctionalDb Dapper() => new(ConnectionDb, this, Options, Log);
 
     /// <summary>
     /// Executes an action in a transaction and commits only when the action succeeds.
@@ -88,7 +88,7 @@ public sealed class FunctionalMsSqlDb(
             return FinFail<T>(Error.New("Transaction action cannot be null."));
         }
 
-        if (_ef is not null)
+        if (EfContext is not null)
         {
             using var activity = SharpFunctionalMsSqlDiagnostics.ActivitySource.StartActivity("sharpfunctional.mssql.transaction");
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.BackendTag, "ef");
@@ -97,35 +97,35 @@ public sealed class FunctionalMsSqlDb(
 
             try
             {
-                _logger?.LogDebug("Starting EF transaction for result type {ResultType}", typeof(T).Name);
-                await using var transaction = await _ef.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+                Log?.LogDebug("Starting EF transaction for result type {ResultType}", typeof(T).Name);
+                await using var transaction = await EfContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
                 var result = await action(this).ConfigureAwait(false);
 
                 if (result.IsSucc)
                 {
                     await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-                    _logger?.LogDebug("Committed EF transaction for result type {ResultType}", typeof(T).Name);
+                    Log?.LogDebug("Committed EF transaction for result type {ResultType}", typeof(T).Name);
                     activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
                     activity?.SetStatus(ActivityStatusCode.Ok);
                     return result;
                 }
 
                 await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-                _logger?.LogWarning("Rolled back EF transaction due to failed result for type {ResultType}", typeof(T).Name);
+                Log?.LogWarning("Rolled back EF transaction due to failed result for type {ResultType}", typeof(T).Name);
                 activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
                 activity?.SetStatus(ActivityStatusCode.Error, "transaction result failed");
                 return result;
             }
             catch (Exception exception)
             {
-                _logger?.LogError(exception, "EF transaction failed for result type {ResultType}", typeof(T).Name);
+                Log?.LogError(exception, "EF transaction failed for result type {ResultType}", typeof(T).Name);
                 activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
                 activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
                 return FinFail<T>(Error.New(exception));
             }
         }
 
-        if (_connection is null)
+        if (ConnectionDb is null)
         {
             return FinFail<T>(Error.New("No backend is configured. Configure either DbContext or IDbConnection."));
         }
@@ -142,10 +142,10 @@ public sealed class FunctionalMsSqlDb(
 
         try
         {
-            _logger?.LogDebug("Starting Dapper transaction for result type {ResultType}", typeof(T).Name);
-            if (_connection.State != ConnectionState.Open)
+            Log?.LogDebug("Starting Dapper transaction for result type {ResultType}", typeof(T).Name);
+            if (ConnectionDb.State != ConnectionState.Open)
             {
-                if (_connection is not System.Data.Common.DbConnection dbConnection)
+                if (ConnectionDb is not System.Data.Common.DbConnection dbConnection)
                 {
                     dapperActivity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
                     dapperActivity?.SetStatus(ActivityStatusCode.Error, "connection does not derive from DbConnection");
@@ -163,28 +163,28 @@ public sealed class FunctionalMsSqlDb(
                 }
             }
 
-            using var transaction = _connection.BeginTransaction();
+            using var transaction = ConnectionDb.BeginTransaction();
             AmbientTransaction = transaction;
 
             var result = await action(this).ConfigureAwait(false);
             if (result.IsSucc)
             {
                 transaction.Commit();
-                _logger?.LogDebug("Committed Dapper transaction for result type {ResultType}", typeof(T).Name);
+                Log?.LogDebug("Committed Dapper transaction for result type {ResultType}", typeof(T).Name);
                 dapperActivity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
                 dapperActivity?.SetStatus(ActivityStatusCode.Ok);
                 return result;
             }
 
             transaction.Rollback();
-            _logger?.LogWarning("Rolled back Dapper transaction due to failed result for type {ResultType}", typeof(T).Name);
+            Log?.LogWarning("Rolled back Dapper transaction due to failed result for type {ResultType}", typeof(T).Name);
             dapperActivity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             dapperActivity?.SetStatus(ActivityStatusCode.Error, "transaction result failed");
             return result;
         }
         catch (Exception exception)
         {
-            _logger?.LogError(exception, "Dapper transaction failed for result type {ResultType}", typeof(T).Name);
+            Log?.LogError(exception, "Dapper transaction failed for result type {ResultType}", typeof(T).Name);
             dapperActivity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             dapperActivity?.SetStatus(ActivityStatusCode.Error, exception.Message);
             return FinFail<T>(Error.New(exception));
@@ -209,17 +209,17 @@ public sealed class FunctionalMsSqlDb(
             try
             {
                 await dbConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
-                _logger?.LogDebug("Opened SQL connection after {AttemptCount} attempt(s)", attempt + 1);
+                Log?.LogDebug("Opened SQL connection after {AttemptCount} attempt(s)", attempt + 1);
                 activity?.SetTag(SharpFunctionalMsSqlDiagnostics.RetryAttemptTag, attempt + 1);
                 activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
                 activity?.SetStatus(ActivityStatusCode.Ok);
                 return unit;
             }
             catch (Exception exception)
-                when (attempt < _executionOptions.MaxRetryCount && SqlTransientDetector.IsTransient(exception))
+                when (attempt < Options.MaxRetryCount && SqlTransientDetector.IsTransient(exception))
             {
-                var retryDelay = _executionOptions.GetRetryDelay(attempt + 1);
-                _logger?.LogWarning(exception, "Transient SQL open failure on attempt {Attempt}. Retrying in {DelayMs} ms", attempt + 1, retryDelay.TotalMilliseconds);
+                var retryDelay = Options.GetRetryDelay(attempt + 1);
+                Log?.LogWarning(exception, "Transient SQL open failure on attempt {Attempt}. Retrying in {DelayMs} ms", attempt + 1, retryDelay.TotalMilliseconds);
                 activity?.AddEvent(new ActivityEvent("retry", tags: new ActivityTagsCollection
                 {
                     { SharpFunctionalMsSqlDiagnostics.RetryAttemptTag, attempt + 1 },
@@ -229,7 +229,7 @@ public sealed class FunctionalMsSqlDb(
             }
             catch (Exception exception)
             {
-                _logger?.LogError(exception, "SQL connection open failed after {AttemptCount} attempt(s)", attempt + 1);
+                Log?.LogError(exception, "SQL connection open failed after {AttemptCount} attempt(s)", attempt + 1);
                 activity?.SetTag(SharpFunctionalMsSqlDiagnostics.RetryAttemptTag, attempt + 1);
                 activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
                 activity?.SetStatus(ActivityStatusCode.Error, exception.Message);

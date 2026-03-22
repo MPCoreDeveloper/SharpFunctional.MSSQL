@@ -14,13 +14,13 @@ namespace SharpFunctional.MsSql.Ef;
 /// </remarks>
 public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = false)
 {
-    private readonly DbContext? _dbContext = dbContext;
-    private readonly bool _trackingEnabled = trackingEnabled;
+    private DbContext? Context => dbContext;
+    private bool TrackingEnabled => trackingEnabled;
 
     /// <summary>
     /// Creates a copy of this accessor with tracking enabled.
     /// </summary>
-    public EfFunctionalDb WithTracking() => new(_dbContext, trackingEnabled: true);
+    public EfFunctionalDb WithTracking() => new(Context, trackingEnabled: true);
 
     /// <summary>
     /// Gets an entity by strongly typed primary key.
@@ -32,18 +32,18 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
     public async Task<Option<T>> GetByIdAsync<T, TId>(TId id, CancellationToken cancellationToken = default)
         where T : class
     {
-        if (_dbContext is null)
+        if (Context is null)
         {
             return Option<T>.None;
         }
 
         try
         {
-            var predicate = BuildPrimaryKeyPredicate<T, TId>(_dbContext, id);
+            var predicate = BuildPrimaryKeyPredicate<T, TId>(Context, id);
             return await predicate.Match(
                     Some: async p =>
                     {
-                        var query = SetForQuery<T>(_dbContext, _trackingEnabled);
+                        var query = SetForQuery<T>(Context, TrackingEnabled);
                         var entity = await query.FirstOrDefaultAsync(p, cancellationToken).ConfigureAwait(false);
                         return Optional(entity);
                     },
@@ -65,14 +65,14 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
     public async Task<Option<T>> FindOneAsync<T>(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
         where T : class
     {
-        if (_dbContext is null || predicate is null)
+        if (Context is null || predicate is null)
         {
             return Option<T>.None;
         }
 
         try
         {
-            var query = SetForQuery<T>(_dbContext, _trackingEnabled);
+            var query = SetForQuery<T>(Context, TrackingEnabled);
             var entity = await query.FirstOrDefaultAsync(predicate, cancellationToken).ConfigureAwait(false);
             return Optional(entity);
         }
@@ -91,14 +91,14 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
     public async Task<Seq<T>> QueryAsync<T>(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
         where T : class
     {
-        if (_dbContext is null || predicate is null)
+        if (Context is null || predicate is null)
         {
             return Seq<T>();
         }
 
         try
         {
-            var query = SetForQuery<T>(_dbContext, _trackingEnabled);
+            var query = SetForQuery<T>(Context, TrackingEnabled);
             var entities = await query.Where(predicate).ToListAsync(cancellationToken).ConfigureAwait(false);
             return toSeq(entities);
         }
@@ -117,7 +117,7 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
     public async Task<Fin<Unit>> AddAsync<T>(T entity, CancellationToken cancellationToken = default)
         where T : class
     {
-        if (_dbContext is null)
+        if (Context is null)
         {
             return FinFail<Unit>(Error.New("EF backend is not configured."));
         }
@@ -129,7 +129,7 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
 
         try
         {
-            await _dbContext.Set<T>().AddAsync(entity, cancellationToken).ConfigureAwait(false);
+            await Context.Set<T>().AddAsync(entity, cancellationToken).ConfigureAwait(false);
             return unit;
         }
         catch (Exception exception)
@@ -147,7 +147,7 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
     public async Task<Fin<Unit>> SaveAsync<T>(T entity, CancellationToken cancellationToken = default)
         where T : class
     {
-        if (_dbContext is null)
+        if (Context is null)
         {
             return FinFail<Unit>(Error.New("EF backend is not configured."));
         }
@@ -159,13 +159,13 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
 
         try
         {
-            var entry = _dbContext.Entry(entity);
+            var entry = Context.Entry(entity);
             if (entry.State == EntityState.Detached)
             {
-                _dbContext.Set<T>().Update(entity);
+                Context.Set<T>().Update(entity);
             }
 
-            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await Context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             return unit;
         }
         catch (Exception exception)
@@ -184,21 +184,21 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
     public async Task<Fin<Unit>> DeleteByIdAsync<T, TId>(TId id, CancellationToken cancellationToken = default)
         where T : class
     {
-        if (_dbContext is null)
+        if (Context is null)
         {
             return FinFail<Unit>(Error.New("EF backend is not configured."));
         }
 
         try
         {
-            var predicate = BuildPrimaryKeyPredicate<T, TId>(_dbContext, id);
+            var predicate = BuildPrimaryKeyPredicate<T, TId>(Context, id);
             if (predicate.IsNone)
             {
                 return FinFail<Unit>(Error.New("Entity primary key metadata is missing or unsupported."));
             }
 
             var entity = await predicate.Match(
-                    Some: p => _dbContext.Set<T>().FirstOrDefaultAsync(p, cancellationToken),
+                    Some: p => Context.Set<T>().FirstOrDefaultAsync(p, cancellationToken),
                     None: () => Task.FromResult<T?>(null))
                 .ConfigureAwait(false);
 
@@ -207,8 +207,8 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
                 return unit;
             }
 
-            _dbContext.Set<T>().Remove(entity);
-            await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            Context.Set<T>().Remove(entity);
+            await Context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             return unit;
         }
         catch (Exception exception)
@@ -226,7 +226,7 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
     public async Task<Fin<int>> CountAsync<T>(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
         where T : class
     {
-        if (_dbContext is null)
+        if (Context is null)
         {
             return FinFail<int>(Error.New("EF backend is not configured."));
         }
@@ -238,7 +238,7 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
 
         try
         {
-            var query = SetForQuery<T>(_dbContext, _trackingEnabled);
+            var query = SetForQuery<T>(Context, TrackingEnabled);
             var count = await query.CountAsync(predicate, cancellationToken).ConfigureAwait(false);
             return count;
         }
@@ -257,7 +257,7 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
     public async Task<Fin<bool>> AnyAsync<T>(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
         where T : class
     {
-        if (_dbContext is null)
+        if (Context is null)
         {
             return FinFail<bool>(Error.New("EF backend is not configured."));
         }
@@ -269,7 +269,7 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
 
         try
         {
-            var query = SetForQuery<T>(_dbContext, _trackingEnabled);
+            var query = SetForQuery<T>(Context, TrackingEnabled);
             var any = await query.AnyAsync(predicate, cancellationToken).ConfigureAwait(false);
             return any;
         }

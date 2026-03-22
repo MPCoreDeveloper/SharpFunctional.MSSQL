@@ -18,10 +18,10 @@ public sealed class DapperFunctionalDb(
     SqlExecutionOptions? executionOptions = null,
     ILogger? logger = null)
 {
-    private readonly IDbConnection? _connection = connection;
-    private readonly FunctionalMsSqlDb _owner = owner;
-    private readonly SqlExecutionOptions _executionOptions = executionOptions ?? SqlExecutionOptions.Default;
-    private readonly ILogger? _logger = logger;
+    private IDbConnection? Connection => connection;
+    private FunctionalMsSqlDb Owner => owner;
+    private SqlExecutionOptions Options => executionOptions ?? SqlExecutionOptions.Default;
+    private ILogger? Logger => logger;
 
     /// <summary>
     /// Executes a stored procedure and returns a single optional value.
@@ -35,7 +35,7 @@ public sealed class DapperFunctionalDb(
         object param,
         CancellationToken cancellationToken = default)
     {
-        if (_connection is null || string.IsNullOrWhiteSpace(procName))
+        if (Connection is null || string.IsNullOrWhiteSpace(procName))
         {
             return Option<T>.None;
         }
@@ -44,20 +44,20 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            _logger?.LogDebug("Executing stored procedure {ProcName} for single value type {ResultType}", procName, typeof(T).Name);
+            Logger?.LogDebug("Executing stored procedure {ProcName} for single value type {ResultType}", procName, typeof(T).Name);
             var result = await ExecuteWithRetryAsync(
                     async ct =>
                     {
-                        await EnsureOpenAsync(_connection, ct).ConfigureAwait(false);
+                        await EnsureOpenAsync(Connection, ct).ConfigureAwait(false);
                         var command = new CommandDefinition(
                             procName,
                             param,
-                            transaction: _owner.AmbientTransaction,
-                            commandTimeout: _executionOptions.CommandTimeoutSeconds,
+                            transaction: Owner.AmbientTransaction,
+                            commandTimeout: Options.CommandTimeoutSeconds,
                             commandType: CommandType.StoredProcedure,
                             cancellationToken: ct);
 
-                        return await _connection.QueryFirstOrDefaultAsync<T>(command).ConfigureAwait(false);
+                        return await Connection.QueryFirstOrDefaultAsync<T>(command).ConfigureAwait(false);
                     },
                     cancellationToken,
                     procName)
@@ -69,7 +69,7 @@ public sealed class DapperFunctionalDb(
         }
         catch (Exception exception)
         {
-            _logger?.LogError(exception, "Stored procedure {ProcName} failed for single value type {ResultType}", procName, typeof(T).Name);
+            Logger?.LogError(exception, "Stored procedure {ProcName} failed for single value type {ResultType}", procName, typeof(T).Name);
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
             return Option<T>.None;
@@ -88,7 +88,7 @@ public sealed class DapperFunctionalDb(
         object param,
         CancellationToken cancellationToken = default)
     {
-        if (_connection is null || string.IsNullOrWhiteSpace(procName))
+        if (Connection is null || string.IsNullOrWhiteSpace(procName))
         {
             return Seq<T>();
         }
@@ -97,20 +97,20 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            _logger?.LogDebug("Executing stored procedure {ProcName} for sequence type {ResultType}", procName, typeof(T).Name);
+            Logger?.LogDebug("Executing stored procedure {ProcName} for sequence type {ResultType}", procName, typeof(T).Name);
             var result = await ExecuteWithRetryAsync(
                     async ct =>
                     {
-                        await EnsureOpenAsync(_connection, ct).ConfigureAwait(false);
+                        await EnsureOpenAsync(Connection, ct).ConfigureAwait(false);
                         var command = new CommandDefinition(
                             procName,
                             param,
-                            transaction: _owner.AmbientTransaction,
-                            commandTimeout: _executionOptions.CommandTimeoutSeconds,
+                            transaction: Owner.AmbientTransaction,
+                            commandTimeout: Options.CommandTimeoutSeconds,
                             commandType: CommandType.StoredProcedure,
                             cancellationToken: ct);
 
-                        return await _connection.QueryAsync<T>(command).ConfigureAwait(false);
+                        return await Connection.QueryAsync<T>(command).ConfigureAwait(false);
                     },
                     cancellationToken,
                     procName)
@@ -122,7 +122,7 @@ public sealed class DapperFunctionalDb(
         }
         catch (Exception exception)
         {
-            _logger?.LogError(exception, "Stored procedure {ProcName} failed for sequence type {ResultType}", procName, typeof(T).Name);
+            Logger?.LogError(exception, "Stored procedure {ProcName} failed for sequence type {ResultType}", procName, typeof(T).Name);
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
             return Seq<T>();
@@ -140,7 +140,7 @@ public sealed class DapperFunctionalDb(
         object param,
         CancellationToken cancellationToken = default)
     {
-        if (_connection is null)
+        if (Connection is null)
         {
             return FinFail<Unit>(Error.New("Dapper backend is not configured."));
         }
@@ -154,20 +154,20 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            _logger?.LogDebug("Executing non-query stored procedure {ProcName}", procName);
+            Logger?.LogDebug("Executing non-query stored procedure {ProcName}", procName);
             await ExecuteWithRetryAsync(
                     async ct =>
                     {
-                        await EnsureOpenAsync(_connection, ct).ConfigureAwait(false);
+                        await EnsureOpenAsync(Connection, ct).ConfigureAwait(false);
                         var command = new CommandDefinition(
                             procName,
                             param,
-                            transaction: _owner.AmbientTransaction,
-                            commandTimeout: _executionOptions.CommandTimeoutSeconds,
+                            transaction: Owner.AmbientTransaction,
+                            commandTimeout: Options.CommandTimeoutSeconds,
                             commandType: CommandType.StoredProcedure,
                             cancellationToken: ct);
 
-                        _ = await _connection.ExecuteAsync(command).ConfigureAwait(false);
+                        _ = await Connection.ExecuteAsync(command).ConfigureAwait(false);
                         return unit;
                     },
                     cancellationToken,
@@ -180,7 +180,7 @@ public sealed class DapperFunctionalDb(
         }
         catch (Exception exception)
         {
-            _logger?.LogError(exception, "Non-query stored procedure {ProcName} failed", procName);
+            Logger?.LogError(exception, "Non-query stored procedure {ProcName} failed", procName);
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
             return FinFail<Unit>(Error.New(exception));
@@ -199,7 +199,7 @@ public sealed class DapperFunctionalDb(
         object param,
         CancellationToken cancellationToken = default)
     {
-        if (_connection is null || string.IsNullOrWhiteSpace(sql))
+        if (Connection is null || string.IsNullOrWhiteSpace(sql))
         {
             return Seq<T>();
         }
@@ -208,19 +208,19 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            _logger?.LogDebug("Executing SQL query for sequence type {ResultType}", typeof(T).Name);
+            Logger?.LogDebug("Executing SQL query for sequence type {ResultType}", typeof(T).Name);
             var result = await ExecuteWithRetryAsync(
                     async ct =>
                     {
-                        await EnsureOpenAsync(_connection, ct).ConfigureAwait(false);
+                        await EnsureOpenAsync(Connection, ct).ConfigureAwait(false);
                         var command = new CommandDefinition(
                             sql,
                             param,
-                            transaction: _owner.AmbientTransaction,
-                            commandTimeout: _executionOptions.CommandTimeoutSeconds,
+                            transaction: Owner.AmbientTransaction,
+                            commandTimeout: Options.CommandTimeoutSeconds,
                             cancellationToken: ct);
 
-                        return await _connection.QueryAsync<T>(command).ConfigureAwait(false);
+                        return await Connection.QueryAsync<T>(command).ConfigureAwait(false);
                     },
                     cancellationToken,
                     sql)
@@ -232,7 +232,7 @@ public sealed class DapperFunctionalDb(
         }
         catch (Exception exception)
         {
-            _logger?.LogError(exception, "SQL query failed for sequence type {ResultType}", typeof(T).Name);
+            Logger?.LogError(exception, "SQL query failed for sequence type {ResultType}", typeof(T).Name);
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
             return Seq<T>();
@@ -251,7 +251,7 @@ public sealed class DapperFunctionalDb(
         object param,
         CancellationToken cancellationToken = default)
     {
-        if (_connection is null || string.IsNullOrWhiteSpace(sql))
+        if (Connection is null || string.IsNullOrWhiteSpace(sql))
         {
             return Option<T>.None;
         }
@@ -260,19 +260,19 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            _logger?.LogDebug("Executing SQL query for single value type {ResultType}", typeof(T).Name);
+            Logger?.LogDebug("Executing SQL query for single value type {ResultType}", typeof(T).Name);
             var result = await ExecuteWithRetryAsync(
                     async ct =>
                     {
-                        await EnsureOpenAsync(_connection, ct).ConfigureAwait(false);
+                        await EnsureOpenAsync(Connection, ct).ConfigureAwait(false);
                         var command = new CommandDefinition(
                             sql,
                             param,
-                            transaction: _owner.AmbientTransaction,
-                            commandTimeout: _executionOptions.CommandTimeoutSeconds,
+                            transaction: Owner.AmbientTransaction,
+                            commandTimeout: Options.CommandTimeoutSeconds,
                             cancellationToken: ct);
 
-                        return await _connection.QueryFirstOrDefaultAsync<T>(command).ConfigureAwait(false);
+                        return await Connection.QueryFirstOrDefaultAsync<T>(command).ConfigureAwait(false);
                     },
                     cancellationToken,
                     sql)
@@ -284,7 +284,7 @@ public sealed class DapperFunctionalDb(
         }
         catch (Exception exception)
         {
-            _logger?.LogError(exception, "SQL query failed for single value type {ResultType}", typeof(T).Name);
+            Logger?.LogError(exception, "SQL query failed for single value type {ResultType}", typeof(T).Name);
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
             return Option<T>.None;
@@ -305,10 +305,10 @@ public sealed class DapperFunctionalDb(
                 return await action(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception)
-                when (attempt < _executionOptions.MaxRetryCount && SqlTransientDetector.IsTransient(exception))
+                when (attempt < Options.MaxRetryCount && SqlTransientDetector.IsTransient(exception))
             {
-                var retryDelay = _executionOptions.GetRetryDelay(attempt + 1);
-                _logger?.LogWarning(exception, "Transient SQL failure on operation {OperationName} attempt {Attempt}. Retrying in {DelayMs} ms", operationName, attempt + 1, retryDelay.TotalMilliseconds);
+                var retryDelay = Options.GetRetryDelay(attempt + 1);
+                Logger?.LogWarning(exception, "Transient SQL failure on operation {OperationName} attempt {Attempt}. Retrying in {DelayMs} ms", operationName, attempt + 1, retryDelay.TotalMilliseconds);
                 Activity.Current?.AddEvent(new ActivityEvent("retry", tags: new ActivityTagsCollection
                 {
                     { SharpFunctionalMsSqlDiagnostics.RetryAttemptTag, attempt + 1 },
