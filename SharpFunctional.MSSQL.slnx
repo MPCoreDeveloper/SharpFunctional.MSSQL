@@ -15,6 +15,7 @@
     <File Path="docs/README.md" />
   </Folder>
   <Folder Name="/examples/">
+    <Project Path="examples/SharpFunctional.MSSQL.DI.Example/SharpFunctional.MSSQL.DI.Example.csproj" />
     <Project Path="examples/SharpFunctional.MSSQL.Example/SharpFunctional.MSSQL.Example.csproj" />
   </Folder>
   <Folder Name="/repo/">
