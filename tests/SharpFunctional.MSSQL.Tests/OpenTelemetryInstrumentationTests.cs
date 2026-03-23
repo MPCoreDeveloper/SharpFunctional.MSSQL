@@ -123,7 +123,7 @@ public class OpenTelemetryInstrumentationTests(DatabaseFixture fixture) : IDispo
         using var listener = CreateListener(activities);
         var db = new FunctionalMsSqlDb(dbContext: _dbContext);
         var entity = new TestEntity { Name = "OTelUpdate" };
-        _dbContext.TestEntities.Add(entity);
+        await _dbContext.TestEntities.AddAsync(entity, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         entity.Name = "OTelUpdated";
 
@@ -150,7 +150,7 @@ public class OpenTelemetryInstrumentationTests(DatabaseFixture fixture) : IDispo
         var activities = new List<Activity>();
         using var listener = CreateListener(activities);
         var db = new FunctionalMsSqlDb(dbContext: _dbContext);
-        _dbContext.TestEntities.Add(new TestEntity { Name = "OTelDelete" });
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "OTelDelete" }, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act

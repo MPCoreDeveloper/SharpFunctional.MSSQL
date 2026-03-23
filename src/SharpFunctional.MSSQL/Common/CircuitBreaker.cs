@@ -109,6 +109,8 @@ public sealed class CircuitBreaker(CircuitBreakerOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(operation);
 
+        // S6966: lock blocks here only protect in-memory counters (no I/O) — intentionally synchronous.
+#pragma warning disable S6966 // Awaitable method should be used
         lock (_stateLock)
         {
             var currentState = EvaluateState();
@@ -132,6 +134,7 @@ public sealed class CircuitBreaker(CircuitBreakerOptions? options = null)
                 RecordSuccess();
             }
         }
+#pragma warning restore S6966
 
         return result;
     }

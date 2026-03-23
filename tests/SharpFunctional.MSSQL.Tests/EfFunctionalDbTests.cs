@@ -48,7 +48,7 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
     {
         // Arrange
         var entity = new TestEntity { Name = "Widget", Price = 9.99m };
-        _dbContext.TestEntities.Add(entity);
+        await _dbContext.TestEntities.AddAsync(entity, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var ef = new EfFunctionalDb(_dbContext);
 
@@ -92,8 +92,8 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
     public async Task FindOneAsync_WithMatchingPredicate_ShouldReturnSome()
     {
         // Arrange
-        _dbContext.TestEntities.Add(new TestEntity { Name = "Alpha", Price = 1.0m });
-        _dbContext.TestEntities.Add(new TestEntity { Name = "Beta", Price = 2.0m });
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "Alpha", Price = 1.0m }, TestContext.Current.CancellationToken);
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "Beta", Price = 2.0m }, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var ef = new EfFunctionalDb(_dbContext);
 
@@ -124,9 +124,9 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
     public async Task QueryAsync_WithMatchingEntities_ShouldReturnSeq()
     {
         // Arrange
-        _dbContext.TestEntities.Add(new TestEntity { Name = "Item1", Price = 10.0m });
-        _dbContext.TestEntities.Add(new TestEntity { Name = "Item2", Price = 20.0m });
-        _dbContext.TestEntities.Add(new TestEntity { Name = "Other", Price = 30.0m });
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "Item1", Price = 10.0m }, TestContext.Current.CancellationToken);
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "Item2", Price = 20.0m }, TestContext.Current.CancellationToken);
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "Other", Price = 30.0m }, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var ef = new EfFunctionalDb(_dbContext);
 
@@ -218,7 +218,7 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
     {
         // Arrange
         var entity = new TestEntity { Name = "Original", Price = 1.0m };
-        _dbContext.TestEntities.Add(entity);
+        await _dbContext.TestEntities.AddAsync(entity, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         entity.Name = "Updated";
         var ef = new EfFunctionalDb(_dbContext);
@@ -250,7 +250,7 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
     {
         // Arrange
         var entity = new TestEntity { Name = "Cancelable", Price = 1.0m };
-        _dbContext.TestEntities.Add(entity);
+        await _dbContext.TestEntities.AddAsync(entity, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var ef = new EfFunctionalDb(_dbContext).WithTracking();
@@ -273,7 +273,7 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
     {
         // Arrange
         var entity = new TestEntity { Name = "ToDelete", Price = 1.0m };
-        _dbContext.TestEntities.Add(entity);
+        await _dbContext.TestEntities.AddAsync(entity, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var ef = new EfFunctionalDb(_dbContext);
 
@@ -305,8 +305,8 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
     public async Task CountAsync_WithMatchingEntities_ShouldReturnCount()
     {
         // Arrange
-        _dbContext.TestEntities.Add(new TestEntity { Name = "A", Price = 10.0m });
-        _dbContext.TestEntities.Add(new TestEntity { Name = "B", Price = 20.0m });
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "A", Price = 10.0m }, TestContext.Current.CancellationToken);
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "B", Price = 20.0m }, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var ef = new EfFunctionalDb(_dbContext);
 
@@ -324,7 +324,7 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
     public async Task AnyAsync_WithMatchingEntity_ShouldReturnTrue()
     {
         // Arrange
-        _dbContext.TestEntities.Add(new TestEntity { Name = "Exists", Price = 1.0m });
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "Exists", Price = 1.0m }, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var ef = new EfFunctionalDb(_dbContext);
 
@@ -354,7 +354,7 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
     public async Task WithTracking_ShouldReturnTrackedEntities()
     {
         // Arrange
-        _dbContext.TestEntities.Add(new TestEntity { Name = "Tracked", Price = 1.0m });
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "Tracked", Price = 1.0m }, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         _dbContext.ChangeTracker.Clear();
         var ef = new EfFunctionalDb(_dbContext).WithTracking();
@@ -375,7 +375,7 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
         // Arrange
         for (var i = 1; i <= 10; i++)
         {
-            _dbContext.TestEntities.Add(new TestEntity { Name = $"Page{i}", Price = i });
+            await _dbContext.TestEntities.AddAsync(new TestEntity { Name = $"Page{i}", Price = i }, TestContext.Current.CancellationToken);
         }
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var ef = new EfFunctionalDb(_dbContext);
@@ -400,7 +400,7 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
     public async Task FindPaginatedAsync_BeyondLastPage_ShouldReturnEmptyItems()
     {
         // Arrange
-        _dbContext.TestEntities.Add(new TestEntity { Name = "Solo", Price = 1.0m });
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "Solo", Price = 1.0m }, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var ef = new EfFunctionalDb(_dbContext);
 
@@ -468,9 +468,9 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
     public async Task FindAsync_WithSpecification_ShouldFilterEntities()
     {
         // Arrange
-        _dbContext.TestEntities.Add(new TestEntity { Name = "SpecA", Price = 10.0m });
-        _dbContext.TestEntities.Add(new TestEntity { Name = "SpecB", Price = 20.0m });
-        _dbContext.TestEntities.Add(new TestEntity { Name = "Other", Price = 30.0m });
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "SpecA", Price = 10.0m }, TestContext.Current.CancellationToken);
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "SpecB", Price = 20.0m }, TestContext.Current.CancellationToken);
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "Other", Price = 30.0m }, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var ef = new EfFunctionalDb(_dbContext);
         var spec = new QuerySpecification<TestEntity>(e => e.Name.StartsWith("Spec"));
@@ -489,7 +489,7 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
         // Arrange
         for (var i = 1; i <= 5; i++)
         {
-            _dbContext.TestEntities.Add(new TestEntity { Name = $"Paged{i}", Price = i });
+            await _dbContext.TestEntities.AddAsync(new TestEntity { Name = $"Paged{i}", Price = i }, TestContext.Current.CancellationToken);
         }
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var ef = new EfFunctionalDb(_dbContext);
@@ -535,7 +535,7 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
         // Assert
         Assert.True(result.IsSucc);
         result.IfSucc(count => Assert.Equal(10, count));
-        Assert.Equal(10, _dbContext.TestEntities.Count(e => e.Name.StartsWith("Batch")));
+        Assert.Equal(10, await _dbContext.TestEntities.CountAsync(e => e.Name.StartsWith("Batch"), TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -584,9 +584,9 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
     public async Task StreamAsync_WithMatchingEntities_ShouldYieldAll()
     {
         // Arrange
-        _dbContext.TestEntities.Add(new TestEntity { Name = "Stream1", Price = 1.0m });
-        _dbContext.TestEntities.Add(new TestEntity { Name = "Stream2", Price = 2.0m });
-        _dbContext.TestEntities.Add(new TestEntity { Name = "Other", Price = 3.0m });
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "Stream1", Price = 1.0m }, TestContext.Current.CancellationToken);
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "Stream2", Price = 2.0m }, TestContext.Current.CancellationToken);
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "Other", Price = 3.0m }, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var ef = new EfFunctionalDb(_dbContext);
 
@@ -642,7 +642,7 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
     {
         // Arrange
         var entities = Enumerable.Range(1, 5).Select(i => new TestEntity { Name = $"UpdBatch{i}", Price = i }).ToList();
-        _dbContext.TestEntities.AddRange(entities);
+        await _dbContext.TestEntities.AddRangeAsync(entities, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         foreach (var e in entities) e.Price += 100;
         var ef = new EfFunctionalDb(_dbContext);
@@ -653,10 +653,10 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
         // Assert
         Assert.True(result.IsSucc);
         result.IfSucc(count => Assert.Equal(5, count));
-        var prices = _dbContext.TestEntities
+        var prices = await _dbContext.TestEntities
             .Where(e => e.Name.StartsWith("UpdBatch"))
             .Select(e => e.Price)
-            .ToList();
+            .ToListAsync(TestContext.Current.CancellationToken);
         Assert.All(prices, p => Assert.True(p > 100));
     }
 
@@ -708,9 +708,9 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
         // Arrange
         for (var i = 1; i <= 6; i++)
         {
-            _dbContext.TestEntities.Add(new TestEntity { Name = $"DelBatch{i}", Price = i });
+            await _dbContext.TestEntities.AddAsync(new TestEntity { Name = $"DelBatch{i}", Price = i }, TestContext.Current.CancellationToken);
         }
-        _dbContext.TestEntities.Add(new TestEntity { Name = "KeepMe", Price = 99 });
+        await _dbContext.TestEntities.AddAsync(new TestEntity { Name = "KeepMe", Price = 99 }, TestContext.Current.CancellationToken);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var ef = new EfFunctionalDb(_dbContext);
 
@@ -720,8 +720,8 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
         // Assert
         Assert.True(result.IsSucc);
         result.IfSucc(count => Assert.Equal(6, count));
-        Assert.False(_dbContext.TestEntities.Any(e => e.Name.StartsWith("DelBatch")));
-        Assert.True(_dbContext.TestEntities.Any(e => e.Name == "KeepMe"));
+        Assert.False(await _dbContext.TestEntities.AnyAsync(e => e.Name.StartsWith("DelBatch"), TestContext.Current.CancellationToken));
+        Assert.True(await _dbContext.TestEntities.AnyAsync(e => e.Name == "KeepMe", TestContext.Current.CancellationToken));
     }
 
     [Fact]
