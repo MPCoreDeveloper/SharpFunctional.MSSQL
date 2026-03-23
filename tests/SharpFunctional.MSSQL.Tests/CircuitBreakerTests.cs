@@ -32,10 +32,11 @@ public class CircuitBreakerTests
     public async Task ExecuteAsync_WhenClosed_ShouldAllowOperations()
     {
         // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var breaker = new CircuitBreaker();
 
         // Act
-        var result = await breaker.ExecuteAsync(SuccessOp);
+        var result = await breaker.ExecuteAsync(SuccessOp, ct);
 
         // Assert
         Assert.True(result.IsSucc);
@@ -46,11 +47,12 @@ public class CircuitBreakerTests
     public async Task ExecuteAsync_WhenClosedWithFailureBelowThreshold_ShouldStayClosed()
     {
         // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var breaker = new CircuitBreaker(new CircuitBreakerOptions { FailureThreshold = 3 });
 
         // Act
-        await breaker.ExecuteAsync(FailOp);
-        await breaker.ExecuteAsync(FailOp);
+        await breaker.ExecuteAsync(FailOp, ct);
+        await breaker.ExecuteAsync(FailOp, ct);
 
         // Assert
         Assert.Equal(CircuitState.Closed, breaker.State);
@@ -61,14 +63,15 @@ public class CircuitBreakerTests
     public async Task ExecuteAsync_WhenSuccessResetsFailureCount_ShouldNotTrip()
     {
         // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var breaker = new CircuitBreaker(new CircuitBreakerOptions { FailureThreshold = 3 });
 
         // Act — 2 failures, then 1 success, then 2 more failures
-        await breaker.ExecuteAsync(FailOp);
-        await breaker.ExecuteAsync(FailOp);
-        await breaker.ExecuteAsync(SuccessOp);
-        await breaker.ExecuteAsync(FailOp);
-        await breaker.ExecuteAsync(FailOp);
+        await breaker.ExecuteAsync(FailOp, ct);
+        await breaker.ExecuteAsync(FailOp, ct);
+        await breaker.ExecuteAsync(SuccessOp, ct);
+        await breaker.ExecuteAsync(FailOp, ct);
+        await breaker.ExecuteAsync(FailOp, ct);
 
         // Assert — still closed because success reset the counter
         Assert.Equal(CircuitState.Closed, breaker.State);
@@ -81,12 +84,13 @@ public class CircuitBreakerTests
     public async Task ExecuteAsync_WhenFailuresReachThreshold_ShouldTripToOpen()
     {
         // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var breaker = new CircuitBreaker(new CircuitBreakerOptions { FailureThreshold = 3 });
 
         // Act
-        await breaker.ExecuteAsync(FailOp);
-        await breaker.ExecuteAsync(FailOp);
-        await breaker.ExecuteAsync(FailOp);
+        await breaker.ExecuteAsync(FailOp, ct);
+        await breaker.ExecuteAsync(FailOp, ct);
+        await breaker.ExecuteAsync(FailOp, ct);
 
         // Assert
         Assert.Equal(CircuitState.Open, breaker.State);
@@ -103,10 +107,11 @@ public class CircuitBreakerTests
             FailureThreshold = 1,
             OpenDuration = TimeSpan.FromMinutes(5)
         });
-        await breaker.ExecuteAsync(FailOp);
+        var ct = TestContext.Current.CancellationToken;
+        await breaker.ExecuteAsync(FailOp, ct);
 
         // Act
-        var result = await breaker.ExecuteAsync(SuccessOp);
+        var result = await breaker.ExecuteAsync(SuccessOp, ct);
 
         // Assert
         Assert.True(result.IsFail);
@@ -124,11 +129,12 @@ public class CircuitBreakerTests
             FailureThreshold = 1,
             OpenDuration = TimeSpan.FromMilliseconds(50)
         });
-        await breaker.ExecuteAsync(FailOp);
+        var ct = TestContext.Current.CancellationToken;
+        await breaker.ExecuteAsync(FailOp, ct);
         Assert.Equal(CircuitState.Open, breaker.State);
 
         // Act — wait for duration to expire
-        await Task.Delay(100);
+        await Task.Delay(100, ct);
 
         // Assert
         Assert.Equal(CircuitState.HalfOpen, breaker.State);
@@ -146,13 +152,14 @@ public class CircuitBreakerTests
             OpenDuration = TimeSpan.FromMilliseconds(50),
             SuccessThresholdInHalfOpen = 2
         });
-        await breaker.ExecuteAsync(FailOp);
-        await Task.Delay(100);
+        var ct = TestContext.Current.CancellationToken;
+        await breaker.ExecuteAsync(FailOp, ct);
+        await Task.Delay(100, ct);
         Assert.Equal(CircuitState.HalfOpen, breaker.State);
 
         // Act — two successes in half-open
-        await breaker.ExecuteAsync(SuccessOp);
-        await breaker.ExecuteAsync(SuccessOp);
+        await breaker.ExecuteAsync(SuccessOp, ct);
+        await breaker.ExecuteAsync(SuccessOp, ct);
 
         // Assert
         Assert.Equal(CircuitState.Closed, breaker.State);
@@ -168,12 +175,13 @@ public class CircuitBreakerTests
             FailureThreshold = 1,
             OpenDuration = TimeSpan.FromMilliseconds(50)
         });
-        await breaker.ExecuteAsync(FailOp);
-        await Task.Delay(100);
+        var ct = TestContext.Current.CancellationToken;
+        await breaker.ExecuteAsync(FailOp, ct);
+        await Task.Delay(100, ct);
         Assert.Equal(CircuitState.HalfOpen, breaker.State);
 
         // Act — fail in half-open
-        await breaker.ExecuteAsync(FailOp);
+        await breaker.ExecuteAsync(FailOp, ct);
 
         // Assert
         Assert.Equal(CircuitState.Open, breaker.State);
@@ -185,8 +193,9 @@ public class CircuitBreakerTests
     public async Task Reset_WhenOpen_ShouldReturnToClosed()
     {
         // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var breaker = new CircuitBreaker(new CircuitBreakerOptions { FailureThreshold = 1 });
-        await breaker.ExecuteAsync(FailOp);
+        await breaker.ExecuteAsync(FailOp, ct);
         Assert.Equal(CircuitState.Open, breaker.State);
 
         // Act
@@ -206,7 +215,8 @@ public class CircuitBreakerTests
         var breaker = new CircuitBreaker();
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentNullException>(() => breaker.ExecuteAsync<int>(null!));
+        var ct = TestContext.Current.CancellationToken;
+        await Assert.ThrowsAsync<ArgumentNullException>(() => breaker.ExecuteAsync<int>(null!, ct));
     }
 
     // --- Custom options ---

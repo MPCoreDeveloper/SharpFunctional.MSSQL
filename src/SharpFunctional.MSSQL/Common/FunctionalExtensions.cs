@@ -4,7 +4,7 @@ using static SharpFunctional.MsSql.Functional.Prelude;
 namespace SharpFunctional.MsSql.Common;
 
 /// <summary>
-/// Provides async functional composition helpers for <see cref="Option{T}"/>, <see cref="Seq{T}"/>, and <see cref="Fin{T}"/>.
+/// Provides async functional composition helpers for <see cref="Option{T}"/>, <see cref="Functional.Seq{T}"/>, and <see cref="Fin{T}"/>.
 /// </summary>
 public static class FunctionalExtensions
 {
