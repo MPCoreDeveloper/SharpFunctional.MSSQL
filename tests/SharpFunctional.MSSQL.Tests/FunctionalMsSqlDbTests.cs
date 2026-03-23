@@ -1,11 +1,10 @@
-using LanguageExt;
-using LanguageExt.Common;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using SharpFunctional.MsSql.Dapper;
 using SharpFunctional.MsSql.Ef;
+using SharpFunctional.MsSql.Functional;
 using Xunit;
-using static LanguageExt.Prelude;
+using static SharpFunctional.MsSql.Functional.Prelude;
 
 namespace SharpFunctional.MsSql.Tests;
 

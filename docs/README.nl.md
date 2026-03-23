@@ -10,7 +10,7 @@
 [![NuGet Publish](https://github.com/MPCoreDeveloper/SharpFunctional.MSSQL/actions/workflows/publish-nuget.yml/badge.svg)](https://github.com/MPCoreDeveloper/SharpFunctional.MSSQL/actions/workflows/publish-nuget.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download)
-[![NuGet](https://img.shields.io/badge/NuGet-2.0.0--preview.1-blue.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
+[![NuGet](https://img.shields.io/badge/NuGet-3.0.0--preview.1-blue.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
 [![Tests](https://img.shields.io/badge/Tests-150%2B-brightgreen.svg)](#testing)
 [![C#](https://img.shields.io/badge/C%23-14-purple.svg)](https://learn.microsoft.com/en-us/dotnet/csharp/)
 
@@ -21,7 +21,7 @@ Functional-first SQL Server toegang voor moderne .NET-applicaties.
 `SharpFunctional.MSSQL` is een `.NET 10` / `C# 14` library die combineert:
 - **Entity Framework Core** gebruiksgemak
 - **Dapper** performance
-- **LanguageExt** resultaattypes (`Option<T>`, `Seq<T>`, `Fin<T>`)
+- **Ingebouwde functionele types** (`Option<T>`, `Seq<T>`, `Fin<T>`) — zero externe dependencies
 - **No-exception API-oppervlak** voor verwachte foutpaden
 
 ---
@@ -45,10 +45,12 @@ Deze package helpt je SQL Server data-access te bouwen met:
 
 ## Features
 
-### Functioneel API-model
+### Functioneel API-model (zero-dependency, ingebouwd)
 - `Option<T>` voor optionele waarden
-- `Seq<T>` voor queryresultaten
+- `Seq<T>` voor queryresultaten (gebaseerd op `ImmutableArray<T>`)
 - `Fin<T>` voor success/failure met foutcontext
+- `Unit` als void-vervanging
+- `Error` voor gestructureerde foutrepresentatie
 
 ### EF Core integratie (`EfFunctionalDb`)
 - `GetByIdAsync<T, TId>`
@@ -120,6 +122,8 @@ Deze package helpt je SQL Server data-access te bouwen met:
 - `CircuitBreakerOptions` - circuit breaker configuratie (thresholds, durations)
 - `QueryResults<T>` - gepagineerd queryresultaat met navigatie-metadata
 - `IQuerySpecification<T>` / `QuerySpecification<T>` - herbruikbare, composable query specifications
+- `Option<T>` / `Fin<T>` / `Seq<T>` / `Unit` / `Error` - zero-dependency functionele types (vervangt LanguageExt)
+- `Prelude` - statische helpers (`FinFail`, `FinSucc`, `toSeq`, `Optional`, `unit`)
 - `ServiceCollectionExtensions` - DI registratie helpers
 - `FunctionalMsSqlDbOptions` - opties voor DI configuratie
 

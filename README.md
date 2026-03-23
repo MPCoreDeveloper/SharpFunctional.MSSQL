@@ -10,7 +10,7 @@
 [![NuGet Publish](https://github.com/MPCoreDeveloper/SharpFunctional.MSSQL/actions/workflows/publish-nuget.yml/badge.svg)](https://github.com/MPCoreDeveloper/SharpFunctional.MSSQL/actions/workflows/publish-nuget.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download)
-[![NuGet](https://img.shields.io/badge/NuGet-2.0.0--preview.1-blue.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
+[![NuGet](https://img.shields.io/badge/NuGet-3.0.0--preview.1-blue.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
 [![Tests](https://img.shields.io/badge/Tests-150%2B-brightgreen.svg)](#testing)
 [![C#](https://img.shields.io/badge/C%23-14-purple.svg)](https://learn.microsoft.com/en-us/dotnet/csharp/)
 
@@ -21,7 +21,7 @@ Functional-first SQL Server access for modern .NET.
 `SharpFunctional.MSSQL` is a `.NET 10` / `C# 14` library that combines:
 - **Entity Framework Core** convenience
 - **Dapper** performance
-- **LanguageExt** result types (`Option<T>`, `Seq<T>`, `Fin<T>`)
+- **Built-in functional types** (`Option<T>`, `Seq<T>`, `Fin<T>`) — zero external dependencies
 - **No-exception API surface** for expected failure paths
 
 ---
@@ -45,10 +45,12 @@ This package helps you build SQL Server data access with:
 
 ## Features
 
-### Functional API model
+### Functional API model (zero-dependency, built-in)
 - `Option<T>` for optional values
-- `Seq<T>` for query result sequences
+- `Seq<T>` for query result sequences (backed by `ImmutableArray<T>`)
 - `Fin<T>` for success/failure with error context
+- `Unit` as void replacement
+- `Error` for structured error representation
 
 ### EF Core integration (`EfFunctionalDb`)
 - `GetByIdAsync<T, TId>`
@@ -120,6 +122,8 @@ This package helps you build SQL Server data access with:
 - `CircuitBreakerOptions` - circuit breaker configuration (thresholds, durations)
 - `QueryResults<T>` - paginated query result with navigation metadata
 - `IQuerySpecification<T>` / `QuerySpecification<T>` - reusable, composable query specifications
+- `Option<T>` / `Fin<T>` / `Seq<T>` / `Unit` / `Error` - zero-dependency functional types (replaces LanguageExt)
+- `Prelude` - static helpers (`FinFail`, `FinSucc`, `toSeq`, `Optional`, `unit`)
 - `ServiceCollectionExtensions` - DI registration helpers
 - `FunctionalMsSqlDbOptions` - options class for DI configuration
 

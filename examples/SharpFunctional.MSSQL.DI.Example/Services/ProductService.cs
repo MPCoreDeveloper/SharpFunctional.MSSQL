@@ -1,10 +1,9 @@
-using LanguageExt;
-using LanguageExt.Common;
 using SharpFunctional.MsSql;
 using SharpFunctional.MsSql.Common;
 using SharpFunctional.MsSql.Ef;
 using SharpFunctional.MsSql.DiExample.Models;
-using static LanguageExt.Prelude;
+using SharpFunctional.MsSql.Functional;
+using static SharpFunctional.MsSql.Functional.Prelude;
 
 namespace SharpFunctional.MsSql.DiExample.Services;
 

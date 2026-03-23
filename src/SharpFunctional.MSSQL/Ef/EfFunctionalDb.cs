@@ -1,11 +1,10 @@
 using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
-using LanguageExt;
-using LanguageExt.Common;
 using Microsoft.EntityFrameworkCore;
 using SharpFunctional.MsSql.Common;
-using static LanguageExt.Prelude;
+using SharpFunctional.MsSql.Functional;
+using static SharpFunctional.MsSql.Functional.Prelude;
 
 namespace SharpFunctional.MsSql.Ef;
 

@@ -1,6 +1,5 @@
-using LanguageExt;
-using LanguageExt.Common;
-using static LanguageExt.Prelude;
+using SharpFunctional.MsSql.Functional;
+using static SharpFunctional.MsSql.Functional.Prelude;
 
 namespace SharpFunctional.MsSql.Transactions;
 

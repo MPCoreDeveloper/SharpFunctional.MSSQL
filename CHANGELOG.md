@@ -5,6 +5,30 @@ All notable changes to **SharpFunctional.MSSQL** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0-preview.1] - 2025-07-23
+
+### Removed
+- **LanguageExt.Core** dependency — replaced with zero-dependency built-in functional types
+
+### Added
+- `SharpFunctional.MsSql.Functional` namespace with:
+  - `Option<T>` — optional value struct (`Some`/`None`, `Match`, `IfSome`, `IfNone`, `Map`, `Bind`)
+  - `Fin<T>` — result monad struct (`Succ`/`Fail`, `Match`, `Map`, `Bind`, `IfSucc`, `IfFail`)
+  - `Seq<T>` — immutable sequence backed by `ImmutableArray<T>` (implements `IReadOnlyList<T>`)
+  - `Unit` — void replacement struct
+  - `Error` — structured error class with `New(string)`, `New(Exception)`, implicit conversions
+  - `Prelude` — static helpers (`FinFail`, `FinSucc`, `toSeq`, `Seq<T>()`, `Optional`, `Some`, `None`, `unit`)
+
+### Changed
+- All `using LanguageExt` / `using static LanguageExt.Prelude` replaced with `using SharpFunctional.MsSql.Functional`
+- NuGet package description updated (no longer references LanguageExt)
+- Package tags updated (removed `languageext`)
+
+### Migration
+- Replace `using LanguageExt;` / `using LanguageExt.Common;` with `using SharpFunctional.MsSql.Functional;`
+- Replace `using static LanguageExt.Prelude;` with `using static SharpFunctional.MsSql.Functional.Prelude;`
+- All type names and method signatures remain identical — `Option<T>`, `Fin<T>`, `Seq<T>`, `Error.New()`, `FinFail<T>()`, `toSeq()` all work the same way
+
 ## [2.0.0-preview.1] - 2025-07-17
 
 ### Added

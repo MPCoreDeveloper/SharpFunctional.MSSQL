@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.Data.SqlClient;
 using SharpFunctional.MsSql.Common;
 using SharpFunctional.MsSql.Ef;
+using SharpFunctional.MsSql.Functional;
 using Xunit;
 
 namespace SharpFunctional.MsSql.Tests;
@@ -32,7 +33,7 @@ public class OpenTelemetryInstrumentationTests(DatabaseFixture fixture) : IDispo
         var result = await db.InTransactionAsync(async _ =>
         {
             await Task.CompletedTask;
-            return LanguageExt.Fin<int>.Succ(1);
+            return Fin<int>.Succ(1);
         }, TestContext.Current.CancellationToken);
 
         // Assert

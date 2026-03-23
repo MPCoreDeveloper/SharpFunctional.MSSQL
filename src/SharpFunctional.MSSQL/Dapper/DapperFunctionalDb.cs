@@ -1,11 +1,10 @@
 using System.Data;
 using System.Diagnostics;
-using LanguageExt;
-using LanguageExt.Common;
 using global::Dapper;
 using Microsoft.Extensions.Logging;
 using SharpFunctional.MsSql.Common;
-using static LanguageExt.Prelude;
+using SharpFunctional.MsSql.Functional;
+using static SharpFunctional.MsSql.Functional.Prelude;
 
 namespace SharpFunctional.MsSql.Dapper;
 

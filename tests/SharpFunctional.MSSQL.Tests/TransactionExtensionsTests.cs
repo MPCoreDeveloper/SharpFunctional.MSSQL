@@ -1,9 +1,8 @@
-using LanguageExt;
-using LanguageExt.Common;
 using Microsoft.EntityFrameworkCore;
+using SharpFunctional.MsSql.Functional;
 using SharpFunctional.MsSql.Transactions;
 using Xunit;
-using static LanguageExt.Prelude;
+using static SharpFunctional.MsSql.Functional.Prelude;
 
 namespace SharpFunctional.MsSql.Tests;
 

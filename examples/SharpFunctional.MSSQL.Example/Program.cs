@@ -2,13 +2,12 @@
 // SharpFunctional.MSSQL — Example Console Application
 // ---------------------------------------------------------------------------
 // Demonstrates functional-first SQL Server access using EF Core, Dapper,
-// transactions, and LanguageExt's Fin<T>/Option<T>/Seq<T> types.
+// transactions, and built-in Fin<T>/Option<T>/Seq<T> types.
 //
 // Requires: SQL Server LocalDB  →  (localdb)\MSSQLLocalDB
 // The example database "SharpFunctionalExample" is created automatically.
 // ---------------------------------------------------------------------------
 
-using LanguageExt;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,8 +17,9 @@ using SharpFunctional.MsSql.DependencyInjection;
 using SharpFunctional.MsSql.Ef;
 using SharpFunctional.MsSql.Example.Data;
 using SharpFunctional.MsSql.Example.Models;
+using SharpFunctional.MsSql.Functional;
 using SharpFunctional.MsSql.Transactions;
-using static LanguageExt.Prelude;
+using static SharpFunctional.MsSql.Functional.Prelude;
 
 const string connectionString =
     "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=SharpFunctionalExample;" +
@@ -309,7 +309,7 @@ var discountResult = await db.InTransactionAsync(async txDb =>
     {
         display.Price *= 0.90m;
         var saveResult = await ef.SaveAsync(display);
-        if (saveResult.IsFail) return FinFail<int>(LanguageExt.Common.Error.New("Save failed during discount"));
+        if (saveResult.IsFail) return FinFail<int>(Error.New("Save failed during discount"));
     }
 
     return Fin<int>.Succ(displays.Count);
@@ -332,8 +332,8 @@ var shipResult = await db.InTransactionAsync(async txDb =>
             o.Status = "Shipped";
             return await ef.SaveAsync(o);
         },
-        None: () => Task.FromResult(FinFail<LanguageExt.Unit>(
-            LanguageExt.Common.Error.New("Order not found"))));
+        None: () => Task.FromResult(FinFail<Unit>(
+            Error.New("Order not found"))));
 });
 
 shipResult.IfSucc(_ => Console.WriteLine("  ✓ Order #2 status updated to 'Shipped'"));
@@ -565,7 +565,7 @@ Console.WriteLine("▸ Simulate failures to trip the circuit breaker:");
 for (var i = 0; i < 3; i++)
 {
     _ = await breaker.ExecuteAsync<int>(ct =>
-        Task.FromResult(FinFail<int>(LanguageExt.Common.Error.New("Simulated DB failure"))));
+        Task.FromResult(FinFail<int>(Error.New("Simulated DB failure"))));
     Console.WriteLine($"  Failure #{i + 1} — state: {breaker.State}, failures: {breaker.FailureCount}");
 }
 

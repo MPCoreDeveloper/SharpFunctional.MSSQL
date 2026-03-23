@@ -1,4 +1,4 @@
-using LanguageExt;
+using SharpFunctional.MsSql.Functional;
 using Xunit;
 
 namespace SharpFunctional.MsSql.Tests;

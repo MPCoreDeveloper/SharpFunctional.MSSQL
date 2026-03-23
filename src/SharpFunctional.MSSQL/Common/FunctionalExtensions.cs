@@ -1,11 +1,10 @@
-using LanguageExt;
-using LanguageExt.Common;
-using static LanguageExt.Prelude;
+using SharpFunctional.MsSql.Functional;
+using static SharpFunctional.MsSql.Functional.Prelude;
 
 namespace SharpFunctional.MsSql.Common;
 
 /// <summary>
-/// Provides async functional composition helpers for <see cref="Option{T}"/>, <see cref="LanguageExt.Seq{T}"/>, and <see cref="Fin{T}"/>.
+/// Provides async functional composition helpers for <see cref="Option{T}"/>, <see cref="Seq{T}"/>, and <see cref="Fin{T}"/>.
 /// </summary>
 public static class FunctionalExtensions
 {

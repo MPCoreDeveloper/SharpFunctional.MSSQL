@@ -1,8 +1,7 @@
-using LanguageExt;
-using LanguageExt.Common;
 using SharpFunctional.MsSql.Common;
+using SharpFunctional.MsSql.Functional;
 using Xunit;
-using static LanguageExt.Prelude;
+using static SharpFunctional.MsSql.Functional.Prelude;
 
 namespace SharpFunctional.MsSql.Tests;
 

@@ -7,11 +7,11 @@
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageId>SharpFunctional.MsSql</PackageId>
-    <Version>2.0.0-preview.1</Version>
+    <Version>3.0.0-preview.1</Version>
     <Authors>SharpFunctional Contributors</Authors>
     <Company>SharpFunctional</Company>
-    <Description>Functional-first SQL Server access for EF Core 10 and Dapper with LanguageExt-powered no-exception APIs.</Description>
-    <PackageTags>sharpfunctional;mssql;sqlserver;efcore;dapper;languageext;functional</PackageTags>
+    <Description>Functional-first SQL Server access for EF Core 10 and Dapper with zero-dependency functional types (Option, Fin, Seq).</Description>
+    <PackageTags>sharpfunctional;mssql;sqlserver;efcore;dapper;functional</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>sharpfunctional_mssql_logo_512.png</PackageIcon>
@@ -32,7 +32,6 @@
 
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.72" />
-    <PackageReference Include="LanguageExt.Core" Version="4.4.9" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5" />
