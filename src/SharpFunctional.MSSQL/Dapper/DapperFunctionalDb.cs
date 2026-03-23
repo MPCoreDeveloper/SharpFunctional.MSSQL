@@ -43,7 +43,11 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            Logger?.LogDebug("Executing stored procedure {ProcName} for single value type {ResultType}", procName, typeof(T).Name);
+            if (Logger?.IsEnabled(LogLevel.Debug) is true)
+            {
+                Logger.LogDebug("Executing stored procedure {ProcName} for single value type {ResultType}", procName, typeof(T).Name);
+            }
+
             var result = await ExecuteWithRetryAsync(
                     async ct =>
                     {
@@ -58,8 +62,8 @@ public sealed class DapperFunctionalDb(
 
                         return await Connection.QueryFirstOrDefaultAsync<T>(command).ConfigureAwait(false);
                     },
-                    cancellationToken,
-                    procName)
+                    procName,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
@@ -96,7 +100,11 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            Logger?.LogDebug("Executing stored procedure {ProcName} for sequence type {ResultType}", procName, typeof(T).Name);
+            if (Logger?.IsEnabled(LogLevel.Debug) is true)
+            {
+                Logger.LogDebug("Executing stored procedure {ProcName} for sequence type {ResultType}", procName, typeof(T).Name);
+            }
+
             var result = await ExecuteWithRetryAsync(
                     async ct =>
                     {
@@ -111,8 +119,8 @@ public sealed class DapperFunctionalDb(
 
                         return await Connection.QueryAsync<T>(command).ConfigureAwait(false);
                     },
-                    cancellationToken,
-                    procName)
+                    procName,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
@@ -153,7 +161,11 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            Logger?.LogDebug("Executing non-query stored procedure {ProcName}", procName);
+            if (Logger?.IsEnabled(LogLevel.Debug) is true)
+            {
+                Logger.LogDebug("Executing non-query stored procedure {ProcName}", procName);
+            }
+
             await ExecuteWithRetryAsync(
                     async ct =>
                     {
@@ -169,8 +181,8 @@ public sealed class DapperFunctionalDb(
                         _ = await Connection.ExecuteAsync(command).ConfigureAwait(false);
                         return unit;
                     },
-                    cancellationToken,
-                    procName)
+                    procName,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
@@ -207,7 +219,11 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            Logger?.LogDebug("Executing SQL query for sequence type {ResultType}", typeof(T).Name);
+            if (Logger?.IsEnabled(LogLevel.Debug) is true)
+            {
+                Logger.LogDebug("Executing SQL query for sequence type {ResultType}", typeof(T).Name);
+            }
+
             var result = await ExecuteWithRetryAsync(
                     async ct =>
                     {
@@ -221,8 +237,8 @@ public sealed class DapperFunctionalDb(
 
                         return await Connection.QueryAsync<T>(command).ConfigureAwait(false);
                     },
-                    cancellationToken,
-                    sql)
+                    sql,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
@@ -259,7 +275,11 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            Logger?.LogDebug("Executing SQL query for single value type {ResultType}", typeof(T).Name);
+            if (Logger?.IsEnabled(LogLevel.Debug) is true)
+            {
+                Logger.LogDebug("Executing SQL query for single value type {ResultType}", typeof(T).Name);
+            }
+
             var result = await ExecuteWithRetryAsync(
                     async ct =>
                     {
@@ -273,8 +293,8 @@ public sealed class DapperFunctionalDb(
 
                         return await Connection.QueryFirstOrDefaultAsync<T>(command).ConfigureAwait(false);
                     },
-                    cancellationToken,
-                    sql)
+                    sql,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
@@ -326,7 +346,11 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            Logger?.LogDebug("Executing paginated stored procedure {ProcName} page {PageNumber} size {PageSize}", procName, pageNumber, pageSize);
+            if (Logger?.IsEnabled(LogLevel.Debug) is true)
+            {
+                Logger.LogDebug("Executing paginated stored procedure {ProcName} page {PageNumber} size {PageSize}", procName, pageNumber, pageSize);
+            }
+
             var result = await ExecuteWithRetryAsync(
                     async ct =>
                     {
@@ -344,8 +368,8 @@ public sealed class DapperFunctionalDb(
                         var totalCount = await multi.ReadSingleAsync<int>().ConfigureAwait(false);
                         return (items, totalCount);
                     },
-                    cancellationToken,
-                    procName)
+                    procName,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
@@ -363,10 +387,12 @@ public sealed class DapperFunctionalDb(
 
     private async Task<T> ExecuteWithRetryAsync<T>(
         Func<CancellationToken, Task<T>> action,
-        CancellationToken cancellationToken,
-        string operationName)
+        string operationName,
+        CancellationToken cancellationToken)
     {
-        for (var attempt = 0; ; attempt++)
+        var attempt = 0;
+
+        while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -385,6 +411,7 @@ public sealed class DapperFunctionalDb(
                     { "retry.delay.ms", retryDelay.TotalMilliseconds }
                 }));
                 await Task.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
+                attempt++;
             }
         }
     }

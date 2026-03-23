@@ -31,4 +31,16 @@ public readonly struct Unit : IEquatable<Unit>, IComparable<Unit>
 
     /// <summary>Inequality operator.</summary>
     public static bool operator !=(Unit left, Unit right) => false;
+
+    /// <summary>Less-than operator. Always false since all Unit values are equal.</summary>
+    public static bool operator <(Unit left, Unit right) => false;
+
+    /// <summary>Greater-than operator. Always false since all Unit values are equal.</summary>
+    public static bool operator >(Unit left, Unit right) => false;
+
+    /// <summary>Less-than-or-equal operator. Always true since all Unit values are equal.</summary>
+    public static bool operator <=(Unit left, Unit right) => true;
+
+    /// <summary>Greater-than-or-equal operator. Always true since all Unit values are equal.</summary>
+    public static bool operator >=(Unit left, Unit right) => true;
 }

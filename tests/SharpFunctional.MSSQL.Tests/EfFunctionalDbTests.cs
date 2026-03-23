@@ -34,6 +34,7 @@ public class EfFunctionalDbTests(DatabaseFixture fixture) : IDisposable
 
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
         // Clean up test data so the next test class starts with a clean slate
         _dbContext.TestEntities.RemoveRange(_dbContext.TestEntities);
         _dbContext.SaveChanges();

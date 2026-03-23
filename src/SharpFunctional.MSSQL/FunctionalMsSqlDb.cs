@@ -96,14 +96,22 @@ public sealed class FunctionalMsSqlDb(
 
             try
             {
-                Log?.LogDebug("Starting EF transaction for result type {ResultType}", typeof(T).Name);
+                if (Log?.IsEnabled(LogLevel.Debug) is true)
+                {
+                    Log.LogDebug("Starting EF transaction for result type {ResultType}", typeof(T).Name);
+                }
+
                 await using var transaction = await EfContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
                 var result = await action(this).ConfigureAwait(false);
 
                 if (result.IsSucc)
                 {
                     await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-                    Log?.LogDebug("Committed EF transaction for result type {ResultType}", typeof(T).Name);
+                    if (Log?.IsEnabled(LogLevel.Debug) is true)
+                    {
+                        Log.LogDebug("Committed EF transaction for result type {ResultType}", typeof(T).Name);
+                    }
+
                     activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
                     activity?.SetStatus(ActivityStatusCode.Ok);
                     return result;
@@ -141,7 +149,11 @@ public sealed class FunctionalMsSqlDb(
 
         try
         {
-            Log?.LogDebug("Starting Dapper transaction for result type {ResultType}", typeof(T).Name);
+            if (Log?.IsEnabled(LogLevel.Debug) is true)
+            {
+                Log.LogDebug("Starting Dapper transaction for result type {ResultType}", typeof(T).Name);
+            }
+
             if (ConnectionDb.State != ConnectionState.Open)
             {
                 if (ConnectionDb is not System.Data.Common.DbConnection dbConnection)
@@ -169,7 +181,11 @@ public sealed class FunctionalMsSqlDb(
             if (result.IsSucc)
             {
                 transaction.Commit();
-                Log?.LogDebug("Committed Dapper transaction for result type {ResultType}", typeof(T).Name);
+                if (Log?.IsEnabled(LogLevel.Debug) is true)
+                {
+                    Log.LogDebug("Committed Dapper transaction for result type {ResultType}", typeof(T).Name);
+                }
+
                 dapperActivity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
                 dapperActivity?.SetStatus(ActivityStatusCode.Ok);
                 return result;
@@ -203,12 +219,18 @@ public sealed class FunctionalMsSqlDb(
         activity?.SetTag(SharpFunctionalMsSqlDiagnostics.OperationTag, "connection.open");
         activity?.SetTag("db.system", "mssql");
 
-        for (var attempt = 0; ; attempt++)
+        var attempt = 0;
+
+        while (true)
         {
             try
             {
                 await dbConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
-                Log?.LogDebug("Opened SQL connection after {AttemptCount} attempt(s)", attempt + 1);
+                if (Log?.IsEnabled(LogLevel.Debug) is true)
+                {
+                    Log.LogDebug("Opened SQL connection after {AttemptCount} attempt(s)", attempt + 1);
+                }
+
                 activity?.SetTag(SharpFunctionalMsSqlDiagnostics.RetryAttemptTag, attempt + 1);
                 activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
                 activity?.SetStatus(ActivityStatusCode.Ok);
@@ -225,6 +247,7 @@ public sealed class FunctionalMsSqlDb(
                     { "retry.delay.ms", retryDelay.TotalMilliseconds }
                 }));
                 await Task.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
+                attempt++;
             }
             catch (Exception exception)
             {

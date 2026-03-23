@@ -16,6 +16,7 @@ public class FunctionalMsSqlDbTests(DatabaseFixture fixture) : IDisposable
 
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
         _dbContext.TestEntities.RemoveRange(_dbContext.TestEntities);
         _dbContext.SaveChanges();
         _dbContext.Dispose();
