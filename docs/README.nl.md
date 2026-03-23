@@ -43,6 +43,77 @@ Deze package helpt je SQL Server data-access te bouwen met:
 
 ---
 
+## Wat is nieuw (v1.0.0 → v3.0.0)
+
+### v3.0.0 — Zero-dependency functionele types
+
+De `LanguageExt.Core` dependency is **volledig verwijderd**.
+Alle functionele types (`Option<T>`, `Fin<T>`, `Seq<T>`, `Unit`, `Error`) zijn nu ingebouwde lichtgewicht `readonly struct`-implementaties in de `SharpFunctional.MsSql.Functional` namespace — speciaal gebouwd voor deze library.
+
+| Wat veranderd | Vóór (v1/v2) | Na (v3) |
+|---|---|---|
+| **Functionele types** | `LanguageExt.Core` (4.4.9, >200 types) | Ingebouwd: 5 types + `Prelude` |
+| **Externe dependencies** | LanguageExt + transitieve deps | Zero functionele deps |
+| **Import** | `using LanguageExt;` | `using SharpFunctional.MsSql.Functional;` |
+| **API-oppervlak** | Identiek | Identiek — drop-in vervanging |
+
+**Migratie vanaf v2:**
+```csharp
+// Vervang:
+using LanguageExt;
+using LanguageExt.Common;
+using static LanguageExt.Prelude;
+
+// Door:
+using SharpFunctional.MsSql.Functional;
+using static SharpFunctional.MsSql.Functional.Prelude;
+```
+
+Alle typenamen (`Option<T>`, `Fin<T>`, `Seq<T>`, `Error.New()`, `FinSucc()`, `FinFail()`, `toSeq()`) blijven hetzelfde.
+
+### v2.0.0 — Feature-uitbreiding + C# 14 modernisering
+
+Grote feature-toevoegingen bovenop de v1-basis:
+
+**Nieuwe EF Core operaties:**
+- `FindPaginatedAsync<T>` — server-side paginatie met `QueryResults<T>` (totaal pagina's, navigatie-metadata, `Map` projectie)
+- `FindAsync<T>(IQuerySpecification<T>)` — specification pattern met filter, include, sortering en paginatie
+- `InsertBatchAsync<T>` / `UpdateBatchAsync<T>` / `DeleteBatchAsync<T>` — configureerbare batch-operaties
+- `StreamAsync<T>` — `IAsyncEnumerable<T>` streaming voor grote datasets
+
+**Nieuwe Dapper operatie:**
+- `ExecuteStoredProcPaginatedAsync<T>` — gepagineerde stored procedure resultaten via `QueryMultipleAsync`
+
+**Nieuwe gemeenschappelijke types:**
+- `QueryResults<T>` — immutable paginatie-record
+- `IQuerySpecification<T>` / `QuerySpecification<T>` — composable query specifications
+- `CircuitBreaker` — thread-safe circuit breaker pattern (`Closed` → `Open` → `HalfOpen`)
+
+**Nieuwe diagnostiek:**
+- 8 nieuwe OpenTelemetry tags (`entity_type`, `batch_size`, `item_count`, `page_number`, `page_size`, `duration_ms`, `correlation_id`, `circuit_state`)
+- EF Core activity tracing voor alle nieuwe methoden
+
+**C# 14 modernisering:**
+- Primary constructors op alle kernklassen
+- C# 14 `Lock` class (vervangt `object` locks)
+- Collection expressions overal
+- Zero breaking changes — alles additief
+
+### v1.0.0 — Initiële release
+
+Fundament van de functionele SQL Server access library:
+- `FunctionalMsSqlDb` facade met EF Core + Dapper backends
+- `EfFunctionalDb` — 9 functionele CRUD-operaties
+- `DapperFunctionalDb` — 5 functionele query/stored proc operaties
+- Transaction support (`InTransactionAsync`, `InTransactionMapAsync`)
+- `SqlExecutionOptions` met retry/timeout configuratie
+- Transient SQL foutdetectie
+- OpenTelemetry `ActivitySource` integratie
+- DI registratie via `ServiceCollectionExtensions`
+- Volledige xUnit v3 testsuite
+
+---
+
 ## Features
 
 ### Functioneel API-model (zero-dependency, ingebouwd)
@@ -258,13 +329,15 @@ var rows = await db.Dapper().QueryAsync<UserDto>(
 ### 4) Transaction flow
 
 ```csharp
+using static SharpFunctional.MsSql.Functional.Prelude;
+
 var result = await db.InTransactionAsync(async txDb =>
 {
     var add = await txDb.Ef().AddAsync(new User { Name = "Ada" }, cancellationToken);
-    if (add.IsFail) return LanguageExt.Prelude.FinFail<string>(LanguageExt.Common.Error.New("Add failed"));
+    if (add.IsFail) return FinFail<string>(Error.New("Add failed"));
 
     await dbContext.SaveChangesAsync(cancellationToken);
-    return LanguageExt.Fin<string>.Succ("committed");
+    return FinSucc("committed");
 }, cancellationToken);
 ```
 
@@ -421,7 +494,6 @@ De testsuite gebruikt `xUnit v3` en bevat LocalDB-gebaseerde integratietests.
 - `docs/` — aanvullende documentatie
 - `.github/` — CI/CD en repo-automatisering
 - `CHANGELOG.md` — versiegeschiedenis
-- `MIGRATION_v1_to_v2.md` — upgrade-handleiding van v1 naar v2
 
 ---
 

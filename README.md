@@ -43,6 +43,77 @@ This package helps you build SQL Server data access with:
 
 ---
 
+## What's new (v1.0.0 → v3.0.0)
+
+### v3.0.0 — Zero-dependency functional types
+
+The `LanguageExt.Core` dependency has been **completely removed**.
+All functional types (`Option<T>`, `Fin<T>`, `Seq<T>`, `Unit`, `Error`) are now built-in lightweight `readonly struct` implementations in the `SharpFunctional.MsSql.Functional` namespace — purpose-built for this library.
+
+| What changed | Before (v1/v2) | After (v3) |
+|---|---|---|
+| **Functional types** | `LanguageExt.Core` (4.4.9, >200 types) | Built-in: 5 types + `Prelude` |
+| **External dependencies** | LanguageExt + transitive deps | Zero functional deps |
+| **Import** | `using LanguageExt;` | `using SharpFunctional.MsSql.Functional;` |
+| **API surface** | Identical | Identical — drop-in replacement |
+
+**Migration from v2:**
+```csharp
+// Replace:
+using LanguageExt;
+using LanguageExt.Common;
+using static LanguageExt.Prelude;
+
+// With:
+using SharpFunctional.MsSql.Functional;
+using static SharpFunctional.MsSql.Functional.Prelude;
+```
+
+All type names (`Option<T>`, `Fin<T>`, `Seq<T>`, `Error.New()`, `FinSucc()`, `FinFail()`, `toSeq()`) remain the same.
+
+### v2.0.0 — Feature expansion + C# 14 modernization
+
+Major feature additions built on top of the v1 foundation:
+
+**New EF Core operations:**
+- `FindPaginatedAsync<T>` — server-side pagination with `QueryResults<T>` (total pages, navigation metadata, `Map` projection)
+- `FindAsync<T>(IQuerySpecification<T>)` — specification pattern with filter, include, ordering, and paging
+- `InsertBatchAsync<T>` / `UpdateBatchAsync<T>` / `DeleteBatchAsync<T>` — configurable batch operations
+- `StreamAsync<T>` — `IAsyncEnumerable<T>` streaming for large data sets
+
+**New Dapper operation:**
+- `ExecuteStoredProcPaginatedAsync<T>` — paginated stored procedure results via `QueryMultipleAsync`
+
+**New common types:**
+- `QueryResults<T>` — immutable pagination record
+- `IQuerySpecification<T>` / `QuerySpecification<T>` — composable query specifications
+- `CircuitBreaker` — thread-safe circuit breaker pattern (`Closed` → `Open` → `HalfOpen`)
+
+**New diagnostics:**
+- 8 new OpenTelemetry tags (`entity_type`, `batch_size`, `item_count`, `page_number`, `page_size`, `duration_ms`, `correlation_id`, `circuit_state`)
+- EF Core activity tracing for all new methods
+
+**C# 14 modernization:**
+- Primary constructors on all core classes
+- C# 14 `Lock` class (replaces `object` locks)
+- Collection expressions throughout
+- Zero breaking changes — all additive
+
+### v1.0.0 — Initial release
+
+Foundation of the functional SQL Server access library:
+- `FunctionalMsSqlDb` facade with EF Core + Dapper backends
+- `EfFunctionalDb` — 9 functional CRUD operations
+- `DapperFunctionalDb` — 5 functional query/stored proc operations
+- Transaction support (`InTransactionAsync`, `InTransactionMapAsync`)
+- `SqlExecutionOptions` with retry/timeout configuration
+- Transient SQL error detection
+- OpenTelemetry `ActivitySource` integration
+- DI registration via `ServiceCollectionExtensions`
+- Full xUnit v3 test suite
+
+---
+
 ## Features
 
 ### Functional API model (zero-dependency, built-in)
@@ -258,13 +329,15 @@ var rows = await db.Dapper().QueryAsync<UserDto>(
 ### 4) Transaction flow
 
 ```csharp
+using static SharpFunctional.MsSql.Functional.Prelude;
+
 var result = await db.InTransactionAsync(async txDb =>
 {
     var add = await txDb.Ef().AddAsync(new User { Name = "Ada" }, cancellationToken);
-    if (add.IsFail) return LanguageExt.Prelude.FinFail<string>(LanguageExt.Common.Error.New("Add failed"));
+    if (add.IsFail) return FinFail<string>(Error.New("Add failed"));
 
     await dbContext.SaveChangesAsync(cancellationToken);
-    return LanguageExt.Fin<string>.Succ("committed");
+    return FinSucc("committed");
 }, cancellationToken);
 ```
 
@@ -421,7 +494,6 @@ Test suite uses `xUnit v3` and includes LocalDB-backed integration tests.
 - `docs/` — additional documentation
 - `.github/` — CI/CD and repo automation
 - `CHANGELOG.md` — version history
-- `MIGRATION_v1_to_v2.md` — upgrade guide from v1 to v2
 
 ---
 
