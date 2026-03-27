@@ -416,9 +416,10 @@ public sealed class DapperFunctionalDb(
         }
     }
 
-    private static Activity? StartDapperActivity(string operation, string statement)
+    private Activity? StartDapperActivity(string operation, string statement)
     {
         var activity = SharpFunctionalMsSqlDiagnostics.ActivitySource.StartActivity("sharpfunctional.mssql.dapper");
+        SharpFunctionalMsSqlDiagnostics.ApplyActivityEnricher(activity, Options);
         activity?.SetTag(SharpFunctionalMsSqlDiagnostics.BackendTag, "dapper");
         activity?.SetTag(SharpFunctionalMsSqlDiagnostics.OperationTag, operation);
         activity?.SetTag("db.system", "mssql");

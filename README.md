@@ -1,3 +1,5 @@
+File: README.md
+````````markdown
 # SharpFunctional.MSSQL
 
 <p align="center">
@@ -40,10 +42,29 @@ This package helps you build SQL Server data access with:
 - batch insert/update/delete operations
 - `IAsyncEnumerable<T>` streaming for large data sets
 - circuit breaker resilience pattern
+- configurable retry jitter strategy
+- custom telemetry activity enrichment hooks
 
 ---
 
-## What's new (v1.0.0 → v3.0.0)
+## What's new (v1.0.0 → v3.1.0)
+
+### v3.1.0 — Backwards-compatible resilience and diagnostics additions
+
+All changes in v3.1.0 are **additive** and preserve existing behavior by default.
+
+**New resilience options:**
+- `RetryJitterMode` enum in `SqlExecutionOptions` (`None` default, `Full` opt-in)
+- optional `ActivityEnricher` delegate in `SqlExecutionOptions` for custom `Activity` tags
+
+**New circuit breaker diagnostics:**
+- `CircuitBreakerSnapshot` immutable metrics model
+- `CircuitBreaker.GetSnapshot()` to read state, counters, and timing information
+
+**Compatibility guarantees:**
+- existing constructors remain valid
+- deterministic retry behavior remains the default
+- enricher failures are safely ignored and never break operations
 
 ### v3.0.0 — Zero-dependency functional types
 
@@ -162,20 +183,24 @@ Foundation of the functional SQL Server access library:
   - command timeout
   - max retries
   - exponential backoff
+  - optional retry jitter (`RetryJitterMode.Full`)
 - transient SQL detection (timeouts, deadlocks, service busy/unavailable)
 - `CircuitBreaker` pattern:
   - thread-safe state machine (`Closed` → `Open` → `HalfOpen`)
   - configurable failure threshold, open duration, and half-open success threshold
   - functional `ExecuteAsync<T>` returning `Fin<T>`
+  - read-only `GetSnapshot()` metrics for state and counters
 
 ### Observability
 - `ILogger` hooks for lifecycle/failure/retry diagnostics
+- source-generated `LoggerMessage` logging in `FunctionalMsSqlDb` to reduce allocations in package-level diagnostics
 - OpenTelemetry support via `ActivitySource`:
   - source name: `SharpFunctional.MsSql`
   - transaction activities
   - Dapper query/stored proc activities
   - EF Core activities (pagination, batch insert/update/delete, specification queries)
   - retry events + standardized tags (`backend`, `operation`, `success`, `retry.attempt`)
+  - optional custom activity enrichment via `SqlExecutionOptions.ActivityEnricher`
   - extended tags: `entity_type`, `batch_size`, `item_count`, `page_number`, `page_size`, `duration_ms`, `correlation_id`, `circuit_state`
 
 ---
@@ -414,6 +439,10 @@ var result = await breaker.ExecuteAsync(
 
 // result is Fin<Option<User>> — check breaker state
 Console.WriteLine($"Circuit state: {breaker.State}");
+
+// Snapshot metrics (additive API)
+var snapshot = breaker.GetSnapshot();
+Console.WriteLine($"Failures: {snapshot.FailureCount}, In state for: {snapshot.TimeInState}");
 ```
 
 ### 10) Dapper paginated stored procedure
@@ -438,6 +467,8 @@ Use the source name below in your tracer configuration:
 ```text
 SharpFunctional.MsSql
 ```
+
+You can optionally enrich each emitted activity via `SqlExecutionOptions.ActivityEnricher`.
 
 Emitted telemetry includes:
 - transaction activities (EF and Dapper)

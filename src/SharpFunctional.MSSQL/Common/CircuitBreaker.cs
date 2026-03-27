@@ -19,6 +19,23 @@ public enum CircuitState
 }
 
 /// <summary>
+/// Immutable snapshot of circuit breaker metrics at a specific point in time.
+/// </summary>
+/// <param name="State">Current circuit state.</param>
+/// <param name="FailureCount">Current number of consecutive failures.</param>
+/// <param name="HalfOpenSuccessCount">Current number of consecutive successes while half-open.</param>
+/// <param name="OpenedAtUtc">Timestamp when the breaker last transitioned to open, or <see cref="DateTime.MinValue"/> if never opened.</param>
+/// <param name="StateChangedAtUtc">Timestamp when the current state was entered.</param>
+/// <param name="TimeInState">Duration elapsed in the current state.</param>
+public readonly record struct CircuitBreakerSnapshot(
+    CircuitState State,
+    int FailureCount,
+    int HalfOpenSuccessCount,
+    DateTime OpenedAtUtc,
+    DateTime StateChangedAtUtc,
+    TimeSpan TimeInState);
+
+/// <summary>
 /// Configuration for <see cref="CircuitBreaker"/> behavior.
 /// </summary>
 public sealed class CircuitBreakerOptions
@@ -64,6 +81,7 @@ public sealed class CircuitBreaker(CircuitBreakerOptions? options = null)
 
     private CircuitState _state = CircuitState.Closed;
     private DateTime _openedAtUtc = DateTime.MinValue;
+    private DateTime _stateChangedAtUtc = DateTime.UtcNow;
     private int _failureCount;
     private int _halfOpenSuccessCount;
 
@@ -92,6 +110,25 @@ public sealed class CircuitBreaker(CircuitBreakerOptions? options = null)
             {
                 return _failureCount;
             }
+        }
+    }
+
+    /// <summary>
+    /// Returns a read-only snapshot of current circuit breaker metrics.
+    /// </summary>
+    public CircuitBreakerSnapshot GetSnapshot()
+    {
+        lock (_stateLock)
+        {
+            var nowUtc = DateTime.UtcNow;
+            var state = EvaluateState(nowUtc);
+            return new CircuitBreakerSnapshot(
+                State: state,
+                FailureCount: _failureCount,
+                HalfOpenSuccessCount: _halfOpenSuccessCount,
+                OpenedAtUtc: _openedAtUtc,
+                StateChangedAtUtc: _stateChangedAtUtc,
+                TimeInState: nowUtc - _stateChangedAtUtc);
         }
     }
 
@@ -149,16 +186,21 @@ public sealed class CircuitBreaker(CircuitBreakerOptions? options = null)
             _state = CircuitState.Closed;
             _failureCount = 0;
             _halfOpenSuccessCount = 0;
+            _stateChangedAtUtc = DateTime.UtcNow;
         }
     }
 
     /// <remarks>Must be called inside <c>lock (_stateLock)</c>.</remarks>
-    private CircuitState EvaluateState()
+    private CircuitState EvaluateState() => EvaluateState(DateTime.UtcNow);
+
+    /// <remarks>Must be called inside <c>lock (_stateLock)</c>.</remarks>
+    private CircuitState EvaluateState(DateTime utcNow)
     {
-        if (_state == CircuitState.Open && DateTime.UtcNow - _openedAtUtc >= _options.OpenDuration)
+        if (_state == CircuitState.Open && utcNow - _openedAtUtc >= _options.OpenDuration)
         {
             _state = CircuitState.HalfOpen;
             _halfOpenSuccessCount = 0;
+            _stateChangedAtUtc = utcNow;
         }
 
         return _state;
@@ -174,11 +216,13 @@ public sealed class CircuitBreaker(CircuitBreakerOptions? options = null)
         {
             _state = CircuitState.Open;
             _openedAtUtc = DateTime.UtcNow;
+            _stateChangedAtUtc = _openedAtUtc;
         }
         else if (_state == CircuitState.Closed && _failureCount >= _options.FailureThreshold)
         {
             _state = CircuitState.Open;
             _openedAtUtc = DateTime.UtcNow;
+            _stateChangedAtUtc = _openedAtUtc;
         }
     }
 
@@ -194,6 +238,7 @@ public sealed class CircuitBreaker(CircuitBreakerOptions? options = null)
                 _state = CircuitState.Closed;
                 _failureCount = 0;
                 _halfOpenSuccessCount = 0;
+                _stateChangedAtUtc = DateTime.UtcNow;
             }
         }
         else

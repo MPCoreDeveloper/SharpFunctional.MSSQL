@@ -1,5 +1,6 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SharpFunctional.MsSql.Dapper;
 using SharpFunctional.MsSql.Ef;
 using SharpFunctional.MsSql.Functional;
@@ -84,6 +85,28 @@ public class FunctionalMsSqlDbTests(DatabaseFixture fixture) : IDisposable
     }
 
     [Fact]
+    public async Task InTransactionAsync_WithLoggerOnEfSuccess_ShouldWriteGeneratedDebugLogs()
+    {
+        // Arrange
+        using var loggerFactory = TestLoggerFactory.Create();
+        var db = new FunctionalMsSqlDb(
+            dbContext: _dbContext,
+            logger: loggerFactory.Factory.CreateLogger<FunctionalMsSqlDb>());
+
+        // Act
+        var result = await db.InTransactionAsync(async _ =>
+        {
+            await Task.CompletedTask;
+            return Fin<string>.Succ("committed");
+        }, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSucc);
+        Assert.Contains(loggerFactory.Entries, entry => entry.Level == LogLevel.Debug && entry.Message == "Starting EF transaction for result type String");
+        Assert.Contains(loggerFactory.Entries, entry => entry.Level == LogLevel.Debug && entry.Message == "Committed EF transaction for result type String");
+    }
+
+    [Fact]
     public async Task InTransactionAsync_WithFailAction_ShouldRollback()
     {
         // Arrange
@@ -99,6 +122,28 @@ public class FunctionalMsSqlDbTests(DatabaseFixture fixture) : IDisposable
 
         // Assert
         Assert.True(result.IsFail);
+    }
+
+    [Fact]
+    public async Task InTransactionAsync_WithLoggerOnDapperOpenFailure_ShouldWriteGeneratedErrorLog()
+    {
+        // Arrange
+        using var loggerFactory = TestLoggerFactory.Create();
+        var db = new FunctionalMsSqlDb(
+            connection: new FailingOpenDbConnection(),
+            logger: loggerFactory.Factory.CreateLogger<FunctionalMsSqlDb>());
+
+        // Act
+        var result = await db.InTransactionAsync(async _ =>
+        {
+            await Task.CompletedTask;
+            return Fin<int>.Succ(1);
+        }, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsFail);
+        Assert.Contains(loggerFactory.Entries, entry => entry.Level == LogLevel.Debug && entry.Message == "Starting Dapper transaction for result type Int32");
+        Assert.Contains(loggerFactory.Entries, entry => entry.Level == LogLevel.Error && entry.Message == "SQL connection open failed after 1 attempt(s)" && entry.Exception is InvalidOperationException);
     }
 
     [Fact]
@@ -137,5 +182,92 @@ public class FunctionalMsSqlDbTests(DatabaseFixture fixture) : IDisposable
 
         // Assert
         Assert.True(result.IsFail);
+    }
+
+    private sealed record TestLogEntry(LogLevel Level, string Message, Exception? Exception);
+
+    private sealed class TestLoggerFactory : IDisposable
+    {
+        private readonly TestLoggerProvider _provider = new();
+
+        private TestLoggerFactory()
+        {
+            Factory = LoggerFactory.Create(builder =>
+            {
+                builder.SetMinimumLevel(LogLevel.Debug);
+                builder.AddProvider(_provider);
+            });
+        }
+
+        public ILoggerFactory Factory { get; }
+
+        public IReadOnlyList<TestLogEntry> Entries => _provider.Entries;
+
+        public static TestLoggerFactory Create() => new();
+
+        public void Dispose() => Factory.Dispose();
+    }
+
+    private sealed class TestLoggerProvider : ILoggerProvider
+    {
+        private readonly List<TestLogEntry> _entries = [];
+
+        public IReadOnlyList<TestLogEntry> Entries => _entries;
+
+        public ILogger CreateLogger(string categoryName) => new TestLogger(_entries);
+
+        public void Dispose()
+        {
+        }
+    }
+
+    private sealed class TestLogger(List<TestLogEntry> entries) : ILogger
+    {
+        private sealed class NullScope : IDisposable
+        {
+            public static readonly NullScope Instance = new();
+
+            public void Dispose()
+            {
+            }
+        }
+
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            entries.Add(new TestLogEntry(logLevel, formatter(state, exception), exception));
+        }
+    }
+
+    private sealed class FailingOpenDbConnection : System.Data.Common.DbConnection
+    {
+        public override string ConnectionString { get; set; } = string.Empty;
+
+        public override string Database => "Test";
+
+        public override string DataSource => "Test";
+
+        public override string ServerVersion => "1.0";
+
+        public override System.Data.ConnectionState State => System.Data.ConnectionState.Closed;
+
+        public override void ChangeDatabase(string databaseName)
+        {
+        }
+
+        public override void Close()
+        {
+        }
+
+        public override void Open() => throw new InvalidOperationException("Open failed");
+
+        public override Task OpenAsync(CancellationToken cancellationToken) => Task.FromException(new InvalidOperationException("Open failed"));
+
+        protected override System.Data.Common.DbTransaction BeginDbTransaction(System.Data.IsolationLevel isolationLevel) => throw new NotSupportedException();
+
+        protected override System.Data.Common.DbCommand CreateDbCommand() => throw new NotSupportedException();
     }
 }

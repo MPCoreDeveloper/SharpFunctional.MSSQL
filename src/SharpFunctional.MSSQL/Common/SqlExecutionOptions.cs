@@ -1,4 +1,22 @@
+using System.Diagnostics;
+
 namespace SharpFunctional.MsSql.Common;
+
+/// <summary>
+/// Configures how retry delay jitter is applied for transient SQL failures.
+/// </summary>
+public enum RetryJitterMode
+{
+    /// <summary>
+    /// No jitter; retry delays remain deterministic.
+    /// </summary>
+    None,
+
+    /// <summary>
+    /// Full jitter; retry delay is randomized between zero and the computed exponential delay.
+    /// </summary>
+    Full
+}
 
 /// <summary>
 /// Configures SQL command timeout and transient retry behavior for Dapper-backed operations.
@@ -7,11 +25,15 @@ namespace SharpFunctional.MsSql.Common;
 /// <param name="maxRetryCount">Maximum retry attempts for transient failures.</param>
 /// <param name="baseRetryDelay">Base retry delay used for exponential backoff.</param>
 /// <param name="maxRetryDelay">Maximum retry delay cap.</param>
+/// <param name="retryJitterMode">Retry jitter mode. Default is <see cref="Common.RetryJitterMode.None"/>.</param>
+/// <param name="activityEnricher">Optional activity enricher called for each created activity.</param>
 public sealed class SqlExecutionOptions(
     int commandTimeoutSeconds = 30,
     int maxRetryCount = 2,
     TimeSpan? baseRetryDelay = null,
-    TimeSpan? maxRetryDelay = null)
+    TimeSpan? maxRetryDelay = null,
+    RetryJitterMode retryJitterMode = RetryJitterMode.None,
+    Action<Activity>? activityEnricher = null)
 {
     /// <summary>
     /// Default SQL execution options.
@@ -47,6 +69,16 @@ public sealed class SqlExecutionOptions(
         : throw new ArgumentOutOfRangeException(nameof(maxRetryDelay), "Max retry delay must be greater than or equal to base retry delay.");
 
     /// <summary>
+    /// Retry jitter mode for transient retry delays.
+    /// </summary>
+    public RetryJitterMode RetryJitterMode { get; } = retryJitterMode;
+
+    /// <summary>
+    /// Optional delegate used to enrich emitted activities with custom tags.
+    /// </summary>
+    public Action<Activity>? ActivityEnricher { get; } = activityEnricher;
+
+    /// <summary>
     /// Calculates exponential backoff delay for a retry attempt.
     /// </summary>
     /// <param name="attempt">Current attempt number (starting at 1).</param>
@@ -60,6 +92,13 @@ public sealed class SqlExecutionOptions(
 
         var delayMs = BaseRetryDelay.TotalMilliseconds * Math.Pow(2, attempt - 1);
         var cappedMs = Math.Min(delayMs, MaxRetryDelay.TotalMilliseconds);
+
+        if (RetryJitterMode == RetryJitterMode.Full && cappedMs > 0)
+        {
+            var jitterMs = Random.Shared.NextDouble() * cappedMs;
+            return TimeSpan.FromMilliseconds(jitterMs);
+        }
+
         return TimeSpan.FromMilliseconds(cappedMs);
     }
 }

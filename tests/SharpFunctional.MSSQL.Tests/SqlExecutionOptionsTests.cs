@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using SharpFunctional.MsSql.Common;
 using Xunit;
 
@@ -16,6 +17,8 @@ public class SqlExecutionOptionsTests
         Assert.Equal(2, options.MaxRetryCount);
         Assert.Equal(TimeSpan.FromMilliseconds(100), options.BaseRetryDelay);
         Assert.Equal(TimeSpan.FromSeconds(2), options.MaxRetryDelay);
+        Assert.Equal(RetryJitterMode.None, options.RetryJitterMode);
+        Assert.Null(options.ActivityEnricher);
     }
 
     [Fact]
@@ -40,5 +43,18 @@ public class SqlExecutionOptionsTests
             new SqlExecutionOptions(
                 baseRetryDelay: TimeSpan.FromMilliseconds(500),
                 maxRetryDelay: TimeSpan.FromMilliseconds(100)));
+    }
+
+    [Fact]
+    public void Constructor_WithRetryJitterAndEnricher_ShouldSetExpectedValues()
+    {
+        // Arrange
+        var options = new SqlExecutionOptions(
+            retryJitterMode: RetryJitterMode.Full,
+            activityEnricher: static activity => activity.SetTag("custom", "value"));
+
+        // Assert
+        Assert.Equal(RetryJitterMode.Full, options.RetryJitterMode);
+        Assert.NotNull(options.ActivityEnricher);
     }
 }

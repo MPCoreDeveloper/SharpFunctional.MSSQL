@@ -1,3 +1,5 @@
+File: docs\README.nl.md
+````````markdown
 # SharpFunctional.MSSQL
 
 <p align="center">
@@ -170,6 +172,7 @@ Fundament van de functionele SQL Server access library:
 
 ### Observability
 - `ILogger` hooks voor lifecycle/failure/retry diagnostiek
+- source-generated `LoggerMessage` logging in `FunctionalMsSqlDb` om allocaties in package-diagnostiek te beperken
 - OpenTelemetry support via `ActivitySource`:
   - source name: `SharpFunctional.MsSql`
   - transaction activities

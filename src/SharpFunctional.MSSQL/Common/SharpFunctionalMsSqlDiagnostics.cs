@@ -47,4 +47,29 @@ public static class SharpFunctionalMsSqlDiagnostics
 
     /// <summary>Tag key for the circuit breaker state.</summary>
     public const string CircuitStateTag = "sharpfunctional.mssql.circuit_state";
+
+    /// <summary>
+    /// Applies an optional activity enricher delegate and ignores enricher failures
+    /// so diagnostics customization cannot break data access execution.
+    /// </summary>
+    /// <param name="activity">Activity to enrich.</param>
+    /// <param name="options">Execution options that may contain an enricher delegate.</param>
+    public static void ApplyActivityEnricher(Activity? activity, SqlExecutionOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (activity is null || options.ActivityEnricher is null)
+        {
+            return;
+        }
+
+        try
+        {
+            options.ActivityEnricher(activity);
+        }
+        catch
+        {
+            // Intentionally ignored to keep telemetry customization non-disruptive.
+        }
+    }
 }

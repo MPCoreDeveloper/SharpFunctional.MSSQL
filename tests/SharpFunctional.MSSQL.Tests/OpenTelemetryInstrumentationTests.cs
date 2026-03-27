@@ -66,6 +66,44 @@ public class OpenTelemetryInstrumentationTests(DatabaseFixture fixture) : IDispo
     }
 
     [Fact]
+    public async Task QuerySingleAsync_WithActivityEnricher_ShouldAddCustomTag()
+    {
+        // Arrange
+        var activities = new List<Activity>();
+        using var listener = CreateListener(activities);
+        var options = new SqlExecutionOptions(
+            activityEnricher: static activity => activity.SetTag("sharpfunctional.mssql.test.tag", "enriched"));
+        var db = new FunctionalMsSqlDb(connection: _connection, executionOptions: options);
+
+        // Act
+        var result = await db.Dapper().QuerySingleAsync<int>("SELECT 1", new { }, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSome);
+        var activity = activities.LastOrDefault(a => a.OperationName == "sharpfunctional.mssql.dapper");
+        Assert.NotNull(activity);
+        Assert.Equal("enriched", activity!.GetTagItem("sharpfunctional.mssql.test.tag"));
+    }
+
+    [Fact]
+    public async Task QuerySingleAsync_WithFailingActivityEnricher_ShouldNotFailOperation()
+    {
+        // Arrange
+        var activities = new List<Activity>();
+        using var listener = CreateListener(activities);
+        var options = new SqlExecutionOptions(
+            activityEnricher: static _ => throw new InvalidOperationException("enricher failed"));
+        var db = new FunctionalMsSqlDb(connection: _connection, executionOptions: options);
+
+        // Act
+        var result = await db.Dapper().QuerySingleAsync<int>("SELECT 1", new { }, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsSome);
+        Assert.Contains(activities, a => a.OperationName == "sharpfunctional.mssql.dapper");
+    }
+
+    [Fact]
     public async Task FindPaginatedAsync_ShouldEmitEfPaginatedActivity()
     {
         // Arrange

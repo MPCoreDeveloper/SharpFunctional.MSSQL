@@ -1,9 +1,29 @@
+File: CHANGELOG.md
 # Changelog
 
 All notable changes to **SharpFunctional.MSSQL** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.1.0] - 2026-03-26
+
+### Added
+- `RetryJitterMode` enum for opt-in retry delay jitter behavior (`None`, `Full`)
+- `SqlExecutionOptions.ActivityEnricher` delegate for custom activity tag enrichment
+- `CircuitBreakerSnapshot` immutable diagnostics model
+- `CircuitBreaker.GetSnapshot()` for thread-safe state/counter/timing inspection
+
+### Changed
+- `SqlExecutionOptions` constructor extended with additive optional parameters:
+  - `retryJitterMode`
+  - `activityEnricher`
+- `FunctionalMsSqlDb`, `DapperFunctionalDb`, and `EfFunctionalDb` now apply optional activity enrichers to emitted `Activity` instances
+
+### Compatibility
+- Existing constructor calls and API usage remain valid
+- Deterministic retry behavior remains default (`RetryJitterMode.None`)
+- Activity enricher failures are ignored to avoid impacting operation flow
 
 ## [3.0.0] - 2025-07-23
 
@@ -23,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All `using LanguageExt` / `using static LanguageExt.Prelude` replaced with `using SharpFunctional.MsSql.Functional`
 - NuGet package description updated (no longer references LanguageExt)
 - Package tags updated (removed `languageext`)
+- `FunctionalMsSqlDb` logging now uses source-generated `LoggerMessage` methods for lower-allocation package diagnostics
 
 ### Migration
 - Replace `using LanguageExt;` / `using LanguageExt.Common;` with `using SharpFunctional.MsSql.Functional;`

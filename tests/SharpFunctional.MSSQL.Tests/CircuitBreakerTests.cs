@@ -232,4 +232,53 @@ public class CircuitBreakerTests
         Assert.Equal(TimeSpan.FromSeconds(30), options.OpenDuration);
         Assert.Equal(2, options.SuccessThresholdInHalfOpen);
     }
+
+    [Fact]
+    public void GetSnapshot_NewBreaker_ShouldExposeCurrentMetrics()
+    {
+        // Arrange
+        var breaker = new CircuitBreaker();
+
+        // Act
+        var snapshot = breaker.GetSnapshot();
+
+        // Assert
+        Assert.Equal(CircuitState.Closed, snapshot.State);
+        Assert.Equal(0, snapshot.FailureCount);
+        Assert.Equal(0, snapshot.HalfOpenSuccessCount);
+        Assert.True(snapshot.TimeInState >= TimeSpan.Zero);
+    }
+
+    [Fact]
+    public async Task GetSnapshot_AfterFailure_ShouldReflectFailureCount()
+    {
+        // Arrange
+        var breaker = new CircuitBreaker(new CircuitBreakerOptions { FailureThreshold = 3 });
+        var ct = TestContext.Current.CancellationToken;
+
+        // Act
+        await breaker.ExecuteAsync(FailOp, ct);
+        var snapshot = breaker.GetSnapshot();
+
+        // Assert
+        Assert.Equal(CircuitState.Closed, snapshot.State);
+        Assert.Equal(1, snapshot.FailureCount);
+    }
+
+    [Fact]
+    public async Task GetSnapshot_WhenOpen_ShouldExposeOpenedTimestamp()
+    {
+        // Arrange
+        var breaker = new CircuitBreaker(new CircuitBreakerOptions { FailureThreshold = 1 });
+        var ct = TestContext.Current.CancellationToken;
+
+        // Act
+        await breaker.ExecuteAsync(FailOp, ct);
+        var snapshot = breaker.GetSnapshot();
+
+        // Assert
+        Assert.Equal(CircuitState.Open, snapshot.State);
+        Assert.NotEqual(DateTime.MinValue, snapshot.OpenedAtUtc);
+        Assert.True(snapshot.TimeInState >= TimeSpan.Zero);
+    }
 }

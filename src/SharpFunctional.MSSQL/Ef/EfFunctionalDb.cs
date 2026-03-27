@@ -14,15 +14,19 @@ namespace SharpFunctional.MsSql.Ef;
 /// <remarks>
 /// Default queries are no-tracking. Use <see cref="WithTracking"/> to enable tracking explicitly.
 /// </remarks>
-public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = false)
+public sealed class EfFunctionalDb(
+    DbContext? dbContext,
+    bool trackingEnabled = false,
+    SqlExecutionOptions? executionOptions = null)
 {
     private DbContext? Context => dbContext;
     private bool TrackingEnabled => trackingEnabled;
+    private SqlExecutionOptions Options => executionOptions ?? SqlExecutionOptions.Default;
 
     /// <summary>
     /// Creates a copy of this accessor with tracking enabled.
     /// </summary>
-    public EfFunctionalDb WithTracking() => new(Context, trackingEnabled: true);
+    public EfFunctionalDb WithTracking() => new(Context, trackingEnabled: true, executionOptions: Options);
 
     /// <summary>
     /// Gets an entity by strongly typed primary key.
@@ -652,9 +656,10 @@ public sealed class EfFunctionalDb(DbContext? dbContext, bool trackingEnabled = 
         return Expression.Lambda<Func<T, bool>>(equals, entityParameter);
     }
 
-    private static Activity? StartEfActivity(string operation, string entityType)
+    private Activity? StartEfActivity(string operation, string entityType)
     {
         var activity = SharpFunctionalMsSqlDiagnostics.ActivitySource.StartActivity("sharpfunctional.mssql.ef");
+        SharpFunctionalMsSqlDiagnostics.ApplyActivityEnricher(activity, Options);
         activity?.SetTag(SharpFunctionalMsSqlDiagnostics.BackendTag, "ef");
         activity?.SetTag(SharpFunctionalMsSqlDiagnostics.OperationTag, operation);
         activity?.SetTag(SharpFunctionalMsSqlDiagnostics.EntityTypeTag, entityType);
