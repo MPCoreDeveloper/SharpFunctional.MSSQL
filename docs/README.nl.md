@@ -57,6 +57,8 @@ De `3.0.1` en `3.0.2` releases zijn volledig **backwards compatible** en focusse
 
 **Aangepast (non-breaking):**
 - emitted activities in `FunctionalMsSqlDb`, `DapperFunctionalDb` en `EfFunctionalDb` ondersteunen nu optionele verrijking
+- logging in `FunctionalMsSqlDb` gebruikt nu source-generated `LoggerMessage` methodes om allocaties te verlagen en diagnostiek-throughput te verbeteren
+- deze logging-optimalisatie kwam uit de community, na een LinkedIn snippet code review verzoek van Ewart Nijburg (Principal .NET & Azure Architect)
 - fouten in enrichers worden defensief afgehandeld en breken data access operaties niet
 - testdekking uitgebreid voor de nieuwe resilience/telemetry scenario's
 

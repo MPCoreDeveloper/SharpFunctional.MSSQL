@@ -59,6 +59,8 @@ The `3.0.1` and `3.0.2` releases are fully **backwards compatible** and focus on
 
 **Changed (non-breaking):**
 - emitted activities in `FunctionalMsSqlDb`, `DapperFunctionalDb`, and `EfFunctionalDb` now support optional enrichment
+- logging in `FunctionalMsSqlDb` now uses source-generated `LoggerMessage` methods to reduce allocations and improve diagnostics throughput
+- this logging optimization was community-driven after a LinkedIn snippet code review request by Ewart Nijburg (Principal .NET & Azure Architect)
 - enricher failures are handled defensively and do not break data access operations
 - test coverage expanded for new resilience/telemetry behaviors
 
