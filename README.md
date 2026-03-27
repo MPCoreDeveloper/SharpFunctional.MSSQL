@@ -1,5 +1,3 @@
-File: README.md
-````````markdown
 # SharpFunctional.MSSQL
 
 <p align="center">
@@ -12,7 +10,7 @@ File: README.md
 [![NuGet Publish](https://github.com/MPCoreDeveloper/SharpFunctional.MSSQL/actions/workflows/publish-nuget.yml/badge.svg)](https://github.com/MPCoreDeveloper/SharpFunctional.MSSQL/actions/workflows/publish-nuget.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download)
-[![NuGet](https://img.shields.io/badge/NuGet-3.0.0-blue.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
+[![NuGet](https://img.shields.io/badge/NuGet-3.0.2-blue.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
 [![Tests](https://img.shields.io/badge/Tests-150%2B-brightgreen.svg)](#testing)
 [![C#](https://img.shields.io/badge/C%23-14-purple.svg)](https://learn.microsoft.com/en-us/dotnet/csharp/)
 
@@ -47,24 +45,22 @@ This package helps you build SQL Server data access with:
 
 ---
 
-## What's new (v1.0.0 → v3.1.0)
+## What's new (v1.0.0 → v3.0.2)
 
-### v3.1.0 — Backwards-compatible resilience and diagnostics additions
+### What's added/changed between v3.0.0 and v3.0.2
 
-All changes in v3.1.0 are **additive** and preserve existing behavior by default.
+The `3.0.1` and `3.0.2` releases are fully **backwards compatible** and focus on resilience and observability improvements.
 
-**New resilience options:**
-- `RetryJitterMode` enum in `SqlExecutionOptions` (`None` default, `Full` opt-in)
-- optional `ActivityEnricher` delegate in `SqlExecutionOptions` for custom `Activity` tags
+**Added:**
+- `RetryJitterMode` in `SqlExecutionOptions` (`None` default, `Full` opt-in)
+- optional `ActivityEnricher` delegate in `SqlExecutionOptions` for custom OpenTelemetry `Activity` enrichment
+- `CircuitBreakerSnapshot` immutable diagnostics model
+- `CircuitBreaker.GetSnapshot()` for thread-safe state/counter/timing inspection
 
-**New circuit breaker diagnostics:**
-- `CircuitBreakerSnapshot` immutable metrics model
-- `CircuitBreaker.GetSnapshot()` to read state, counters, and timing information
-
-**Compatibility guarantees:**
-- existing constructors remain valid
-- deterministic retry behavior remains the default
-- enricher failures are safely ignored and never break operations
+**Changed (non-breaking):**
+- emitted activities in `FunctionalMsSqlDb`, `DapperFunctionalDb`, and `EfFunctionalDb` now support optional enrichment
+- enricher failures are handled defensively and do not break data access operations
+- test coverage expanded for new resilience/telemetry behaviors
 
 ### v3.0.0 — Zero-dependency functional types
 

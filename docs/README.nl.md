@@ -1,5 +1,3 @@
-File: docs\README.nl.md
-````````markdown
 # SharpFunctional.MSSQL
 
 <p align="center">
@@ -45,7 +43,22 @@ Deze package helpt je SQL Server data-access te bouwen met:
 
 ---
 
-## Wat is nieuw (v1.0.0 → v3.0.0)
+## Wat is nieuw (v1.0.0 → v3.0.2)
+
+### Wat is toegevoegd/aangepast tussen v3.0.0 en v3.0.2
+
+De `3.0.1` en `3.0.2` releases zijn volledig **backwards compatible** en focussen op verbeteringen in resilience en observability.
+
+**Toegevoegd:**
+- `RetryJitterMode` in `SqlExecutionOptions` (`None` standaard, `Full` opt-in)
+- optionele `ActivityEnricher` delegate in `SqlExecutionOptions` voor custom OpenTelemetry `Activity` verrijking
+- `CircuitBreakerSnapshot` immutable diagnostisch model
+- `CircuitBreaker.GetSnapshot()` voor thread-safe inspectie van state/counters/timing
+
+**Aangepast (non-breaking):**
+- emitted activities in `FunctionalMsSqlDb`, `DapperFunctionalDb` en `EfFunctionalDb` ondersteunen nu optionele verrijking
+- fouten in enrichers worden defensief afgehandeld en breken data access operaties niet
+- testdekking uitgebreid voor de nieuwe resilience/telemetry scenario's
 
 ### v3.0.0 — Zero-dependency functionele types
 
@@ -214,7 +227,7 @@ dotnet add package SharpFunctional.MSSQL
 ## Dependency Injection
 
 `SharpFunctional.MSSQL` integreert met `Microsoft.Extensions.DependencyInjection` via `IOptions<FunctionalMsSqlDbOptions>`.
-`FunctionalMsSqlDb` wordt geregistreerd als **scoped** (één instantie per request/scope).
+`FunctionalMsSqlDb` wordt geregistreard als **scoped** (één instantie per request/scope).
 
 ### Alleen EF Core
 
