@@ -55,7 +55,7 @@ public sealed class DapperFunctionalDb(
                         var command = new CommandDefinition(
                             procName,
                             param,
-                            transaction: Owner.AmbientTransaction,
+                            transaction: Owner.GetAmbientTransaction(),
                             commandTimeout: Options.CommandTimeoutSeconds,
                             commandType: CommandType.StoredProcedure,
                             cancellationToken: ct);
@@ -112,7 +112,7 @@ public sealed class DapperFunctionalDb(
                         var command = new CommandDefinition(
                             procName,
                             param,
-                            transaction: Owner.AmbientTransaction,
+                            transaction: Owner.GetAmbientTransaction(),
                             commandTimeout: Options.CommandTimeoutSeconds,
                             commandType: CommandType.StoredProcedure,
                             cancellationToken: ct);
@@ -173,7 +173,7 @@ public sealed class DapperFunctionalDb(
                         var command = new CommandDefinition(
                             procName,
                             param,
-                            transaction: Owner.AmbientTransaction,
+                            transaction: Owner.GetAmbientTransaction(),
                             commandTimeout: Options.CommandTimeoutSeconds,
                             commandType: CommandType.StoredProcedure,
                             cancellationToken: ct);
@@ -231,7 +231,7 @@ public sealed class DapperFunctionalDb(
                         var command = new CommandDefinition(
                             sql,
                             param,
-                            transaction: Owner.AmbientTransaction,
+                            transaction: Owner.GetAmbientTransaction(),
                             commandTimeout: Options.CommandTimeoutSeconds,
                             cancellationToken: ct);
 
@@ -287,7 +287,7 @@ public sealed class DapperFunctionalDb(
                         var command = new CommandDefinition(
                             sql,
                             param,
-                            transaction: Owner.AmbientTransaction,
+                            transaction: Owner.GetAmbientTransaction(),
                             commandTimeout: Options.CommandTimeoutSeconds,
                             cancellationToken: ct);
 
@@ -358,7 +358,7 @@ public sealed class DapperFunctionalDb(
                         var command = new CommandDefinition(
                             procName,
                             param,
-                            transaction: Owner.AmbientTransaction,
+                            transaction: Owner.GetAmbientTransaction(),
                             commandTimeout: Options.CommandTimeoutSeconds,
                             commandType: CommandType.StoredProcedure,
                             cancellationToken: ct);

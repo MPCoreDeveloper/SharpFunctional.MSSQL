@@ -26,7 +26,7 @@ namespace SharpFunctional.MsSql;
 ///
 /// Dapper example:
 /// <code>
-/// var db = new FunctionalMsSqlDb(connection: sqlConnection);
+/// var db = new FunctionalMsSqlDb(dbconnection: sqlConnection);
 /// var rows = await db.Dapper().ExecuteStoredProcAsync&lt;UserDto&gt;("dbo.Users_GetByStatus", new { Status = 1 });
 /// </code>
 ///
@@ -51,26 +51,29 @@ namespace SharpFunctional.MsSql;
 /// </remarks>
 public sealed class FunctionalMsSqlDb(
     DbContext? dbContext = null,
-    IDbConnection? connection = null,
+    IDbConnection? dbConnection = null,
     SqlExecutionOptions? executionOptions = null,
     ILogger<FunctionalMsSqlDb>? logger = null)
 {
-    private DbContext? EfContext => dbContext;
-    private IDbConnection? ConnectionDb => connection;
+    private readonly bool _hasBackend = dbContext is not null || dbConnection is not null
+        ? true
+        : throw new ArgumentException("Either dbContext or dbConnection must be provided.");
+    private IDbTransaction? _ambientTransaction;
+
     private SqlExecutionOptions Options => executionOptions ?? SqlExecutionOptions.Default;
     private ILogger<FunctionalMsSqlDb>? Log => logger;
 
-    internal IDbTransaction? AmbientTransaction { get; private set; }
+    internal IDbTransaction? GetAmbientTransaction() => _ambientTransaction;
 
     /// <summary>
     /// Returns the EF Core functional accessor. Default behavior is no-tracking.
     /// </summary>
-    public EfFunctionalDb Ef() => new(EfContext, executionOptions: Options);
+    public EfFunctionalDb Ef() => new(dbContext, executionOptions: Options);
 
     /// <summary>
     /// Returns the Dapper functional accessor.
     /// </summary>
-    public DapperFunctionalDb Dapper() => new(ConnectionDb, this, Options, Log);
+    public DapperFunctionalDb Dapper() => new(dbConnection, this, Options, Log);
 
     /// <summary>
     /// Executes an action in a transaction and commits only when the action succeeds.
@@ -83,6 +86,8 @@ public sealed class FunctionalMsSqlDb(
         Func<FunctionalMsSqlDb, Task<Fin<T>>> action,
         CancellationToken cancellationToken = default)
     {
+        _ = _hasBackend;
+
         if (action is null)
         {
             return FinFail<T>(Error.New("Transaction action cannot be null."));
@@ -91,7 +96,7 @@ public sealed class FunctionalMsSqlDb(
         var loggerInstance = Log;
         var resultTypeName = typeof(T).Name;
 
-        if (EfContext is not null)
+        if (dbContext is not null)
         {
             using var activity = SharpFunctionalMsSqlDiagnostics.ActivitySource.StartActivity("sharpfunctional.mssql.transaction");
             SharpFunctionalMsSqlDiagnostics.ApplyActivityEnricher(activity, Options);
@@ -106,7 +111,7 @@ public sealed class FunctionalMsSqlDb(
                     FunctionalMsSqlDbLog.StartingEfTransaction(loggerInstance, resultTypeName);
                 }
 
-                await using var transaction = await EfContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+                await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
                 var result = await action(this).ConfigureAwait(false);
 
                 if (result.IsSucc)
@@ -145,12 +150,12 @@ public sealed class FunctionalMsSqlDb(
             }
         }
 
-        if (ConnectionDb is null)
+        if (dbConnection is null)
         {
             return FinFail<T>(Error.New("No backend is configured. Configure either DbContext or IDbConnection."));
         }
 
-        if (AmbientTransaction is not null)
+        if (_ambientTransaction is not null)
         {
             return FinFail<T>(Error.New("Nested transactions are not supported for Dapper backend."));
         }
@@ -168,28 +173,28 @@ public sealed class FunctionalMsSqlDb(
                 FunctionalMsSqlDbLog.StartingDapperTransaction(loggerInstance, resultTypeName);
             }
 
-            if (ConnectionDb.State != ConnectionState.Open)
+            if (dbConnection.State != ConnectionState.Open)
             {
-                if (ConnectionDb is not System.Data.Common.DbConnection dbConnection)
+                if (dbConnection is not System.Data.Common.DbConnection dbConn)
                 {
                     dapperActivity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
-                    dapperActivity?.SetStatus(ActivityStatusCode.Error, "connection does not derive from DbConnection");
-                    return FinFail<T>(Error.New("Connection must derive from DbConnection for async open operations."));
+                    dapperActivity?.SetStatus(ActivityStatusCode.Error, "dbConnection does not derive from DbConnection");
+                    return FinFail<T>(Error.New("DbConnection must derive from DbConnection for async open operations."));
                 }
 
-                var openResult = await OpenConnectionWithRetryAsync(dbConnection, cancellationToken).ConfigureAwait(false);
+                var openResult = await OpenConnectionWithRetryAsync(dbConn, cancellationToken).ConfigureAwait(false);
                 if (openResult.IsFail)
                 {
                     dapperActivity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
-                    dapperActivity?.SetStatus(ActivityStatusCode.Error, "connection open failed");
+                    dapperActivity?.SetStatus(ActivityStatusCode.Error, "dbConnection open failed");
                     return openResult.Match(
-                        Succ: _ => FinFail<T>(Error.New("Failed to open SQL connection.")),
+                        Succ: _ => FinFail<T>(Error.New("Failed to open SQL dbConnection.")),
                         Fail: error => FinFail<T>(error));
                 }
             }
 
-            using var transaction = ConnectionDb.BeginTransaction();
-            AmbientTransaction = transaction;
+            using var transaction = dbConnection.BeginTransaction();
+            _ambientTransaction = transaction;
 
             var result = await action(this).ConfigureAwait(false);
             if (result.IsSucc)
@@ -228,7 +233,7 @@ public sealed class FunctionalMsSqlDb(
         }
         finally
         {
-            AmbientTransaction = null;
+            _ambientTransaction = null;
         }
     }
 
@@ -236,10 +241,10 @@ public sealed class FunctionalMsSqlDb(
         System.Data.Common.DbConnection dbConnection,
         CancellationToken cancellationToken)
     {
-        using var activity = SharpFunctionalMsSqlDiagnostics.ActivitySource.StartActivity("sharpfunctional.mssql.connection.open");
+        using var activity = SharpFunctionalMsSqlDiagnostics.ActivitySource.StartActivity("sharpfunctional.mssql.dbconnection.open");
         SharpFunctionalMsSqlDiagnostics.ApplyActivityEnricher(activity, Options);
         activity?.SetTag(SharpFunctionalMsSqlDiagnostics.BackendTag, "dapper");
-        activity?.SetTag(SharpFunctionalMsSqlDiagnostics.OperationTag, "connection.open");
+        activity?.SetTag(SharpFunctionalMsSqlDiagnostics.OperationTag, "dbconnection.open");
         activity?.SetTag("db.system", "mssql");
 
         var loggerInstance = Log;

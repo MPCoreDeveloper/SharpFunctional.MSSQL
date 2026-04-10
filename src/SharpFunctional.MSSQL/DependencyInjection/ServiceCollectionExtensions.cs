@@ -86,7 +86,7 @@ public static class ServiceCollectionExtensions
             var opts = sp.GetRequiredService<IOptions<FunctionalMsSqlDbOptions>>().Value;
             var connection = new SqlConnection(opts.ConnectionString);
             var logger = sp.GetService<ILogger<FunctionalMsSqlDb>>();
-            return new FunctionalMsSqlDb(connection: connection, executionOptions: opts.ExecutionOptions, logger: logger);
+            return new FunctionalMsSqlDb(dbConnection: connection, executionOptions: opts.ExecutionOptions, logger: logger);
         });
 
         return services;
@@ -132,7 +132,7 @@ public static class ServiceCollectionExtensions
             var opts = sp.GetRequiredService<IOptions<FunctionalMsSqlDbOptions>>().Value;
             var connection = new SqlConnection(opts.ConnectionString);
             var logger = sp.GetService<ILogger<FunctionalMsSqlDb>>();
-            return new FunctionalMsSqlDb(dbContext: context, connection: connection, executionOptions: opts.ExecutionOptions, logger: logger);
+            return new FunctionalMsSqlDb(dbContext: context, dbConnection: connection, executionOptions: opts.ExecutionOptions, logger: logger);
         });
 
         return services;
@@ -180,7 +180,7 @@ public static class ServiceCollectionExtensions
 
             var connection = new SqlConnection(opts.ConnectionString);
             var logger = sp.GetService<ILogger<FunctionalMsSqlDb>>();
-            return new FunctionalMsSqlDb(dbContext: context, connection: connection, executionOptions: opts.ExecutionOptions, logger: logger);
+            return new FunctionalMsSqlDb(dbContext: context, dbConnection: connection, executionOptions: opts.ExecutionOptions, logger: logger);
         });
 
         return services;

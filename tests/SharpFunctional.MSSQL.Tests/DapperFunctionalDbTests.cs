@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using SharpFunctional.MsSql.Functional;
 using Xunit;
 
@@ -9,7 +10,8 @@ public class DapperFunctionalDbTests
     public async Task ExecuteStoredProcSingleAsync_WithNullConnection_ShouldReturnNone()
     {
         // Arrange
-        var db = new FunctionalMsSqlDb(connection: null);
+        using var placeholderDbContext = new DbContext(new DbContextOptionsBuilder().Options);
+        var db = new FunctionalMsSqlDb(dbContext: placeholderDbContext, dbConnection: null);
         var dapper = db.Dapper();
 
         // Act
@@ -23,7 +25,8 @@ public class DapperFunctionalDbTests
     public async Task ExecuteStoredProcSingleAsync_WithEmptyProcName_ShouldReturnNone()
     {
         // Arrange
-        var db = new FunctionalMsSqlDb(connection: null);
+        using var placeholderDbContext = new DbContext(new DbContextOptionsBuilder().Options);
+        var db = new FunctionalMsSqlDb(dbContext: placeholderDbContext, dbConnection: null);
         var dapper = db.Dapper();
 
         // Act
@@ -37,7 +40,8 @@ public class DapperFunctionalDbTests
     public async Task ExecuteStoredProcAsync_WithNullConnection_ShouldReturnEmptySeq()
     {
         // Arrange
-        var db = new FunctionalMsSqlDb(connection: null);
+        using var placeholderDbContext = new DbContext(new DbContextOptionsBuilder().Options);
+        var db = new FunctionalMsSqlDb(dbContext: placeholderDbContext, dbConnection: null);
         var dapper = db.Dapper();
 
         // Act
@@ -51,7 +55,8 @@ public class DapperFunctionalDbTests
     public async Task ExecuteStoredProcNonQueryAsync_WithNullConnection_ShouldReturnFail()
     {
         // Arrange
-        var db = new FunctionalMsSqlDb(connection: null);
+        using var placeholderDbContext = new DbContext(new DbContextOptionsBuilder().Options);
+        var db = new FunctionalMsSqlDb(dbContext: placeholderDbContext, dbConnection: null);
         var dapper = db.Dapper();
 
         // Act
@@ -65,7 +70,8 @@ public class DapperFunctionalDbTests
     public async Task ExecuteStoredProcNonQueryAsync_WithEmptyProcName_ShouldReturnFail()
     {
         // Arrange
-        var db = new FunctionalMsSqlDb(connection: null);
+        using var placeholderDbContext = new DbContext(new DbContextOptionsBuilder().Options);
+        var db = new FunctionalMsSqlDb(dbContext: placeholderDbContext, dbConnection: null);
         var dapper = db.Dapper();
 
         // Act
@@ -79,7 +85,8 @@ public class DapperFunctionalDbTests
     public async Task QueryAsync_WithNullConnection_ShouldReturnEmptySeq()
     {
         // Arrange
-        var db = new FunctionalMsSqlDb(connection: null);
+        using var placeholderDbContext = new DbContext(new DbContextOptionsBuilder().Options);
+        var db = new FunctionalMsSqlDb(dbContext: placeholderDbContext, dbConnection: null);
         var dapper = db.Dapper();
 
         // Act
@@ -93,7 +100,8 @@ public class DapperFunctionalDbTests
     public async Task QuerySingleAsync_WithNullConnection_ShouldReturnNone()
     {
         // Arrange
-        var db = new FunctionalMsSqlDb(connection: null);
+        using var placeholderDbContext = new DbContext(new DbContextOptionsBuilder().Options);
+        var db = new FunctionalMsSqlDb(dbContext: placeholderDbContext, dbConnection: null);
         var dapper = db.Dapper();
 
         // Act
@@ -109,7 +117,8 @@ public class DapperFunctionalDbTests
     public async Task ExecuteStoredProcPaginatedAsync_WithNullConnection_ShouldReturnFail()
     {
         // Arrange
-        var db = new FunctionalMsSqlDb(connection: null);
+        using var placeholderDbContext = new DbContext(new DbContextOptionsBuilder().Options);
+        var db = new FunctionalMsSqlDb(dbContext: placeholderDbContext, dbConnection: null);
         var dapper = db.Dapper();
 
         // Act
@@ -123,7 +132,8 @@ public class DapperFunctionalDbTests
     public async Task ExecuteStoredProcPaginatedAsync_WithEmptyProcName_ShouldReturnFail()
     {
         // Arrange
-        var db = new FunctionalMsSqlDb(connection: null);
+        using var placeholderDbContext = new DbContext(new DbContextOptionsBuilder().Options);
+        var db = new FunctionalMsSqlDb(dbContext: placeholderDbContext, dbConnection: null);
         var dapper = db.Dapper();
 
         // Act

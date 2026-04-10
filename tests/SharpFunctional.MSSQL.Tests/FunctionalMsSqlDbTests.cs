@@ -41,7 +41,7 @@ public class FunctionalMsSqlDbTests(DatabaseFixture fixture) : IDisposable
     public void Dapper_ShouldReturnDapperFunctionalDb()
     {
         // Arrange
-        var db = new FunctionalMsSqlDb(connection: _connection);
+        var db = new FunctionalMsSqlDb(dbConnection: _connection);
 
         // Act
         var dapper = db.Dapper();
@@ -130,7 +130,7 @@ public class FunctionalMsSqlDbTests(DatabaseFixture fixture) : IDisposable
         // Arrange
         using var loggerFactory = TestLoggerFactory.Create();
         var db = new FunctionalMsSqlDb(
-            connection: new FailingOpenDbConnection(),
+            dbConnection: new FailingOpenDbConnection(),
             logger: loggerFactory.Factory.CreateLogger<FunctionalMsSqlDb>());
 
         // Act
@@ -143,7 +143,7 @@ public class FunctionalMsSqlDbTests(DatabaseFixture fixture) : IDisposable
         // Assert
         Assert.True(result.IsFail);
         Assert.Contains(loggerFactory.Entries, entry => entry.Level == LogLevel.Debug && entry.Message == "Starting Dapper transaction for result type Int32");
-        Assert.Contains(loggerFactory.Entries, entry => entry.Level == LogLevel.Error && entry.Message == "SQL connection open failed after 1 attempt(s)" && entry.Exception is InvalidOperationException);
+        Assert.Contains(loggerFactory.Entries, entry => entry.Level == LogLevel.Error && entry.Message == "SQL dbConnection open failed after 1 attempt(s)" && entry.Exception is InvalidOperationException);
     }
 
     [Fact]
@@ -168,20 +168,13 @@ public class FunctionalMsSqlDbTests(DatabaseFixture fixture) : IDisposable
     }
 
     [Fact]
-    public async Task InTransactionAsync_WithNoBackend_ShouldReturnFail()
+    public void Constructor_WithNoBackend_ShouldThrowArgumentException()
     {
         // Arrange
-        var db = new FunctionalMsSqlDb();
-
-        // Act
-        var result = await db.InTransactionAsync(async _ =>
-        {
-            await Task.CompletedTask;
-            return Fin<int>.Succ(1);
-        }, TestContext.Current.CancellationToken);
+        var exception = Assert.Throws<ArgumentException>(() => new FunctionalMsSqlDb());
 
         // Assert
-        Assert.True(result.IsFail);
+        Assert.Contains("Either dbContext or dbConnection must be provided.", exception.Message);
     }
 
     private sealed record TestLogEntry(LogLevel Level, string Message, Exception? Exception);
