@@ -86,7 +86,10 @@ public sealed class FunctionalMsSqlDb(
         Func<FunctionalMsSqlDb, Task<Fin<T>>> action,
         CancellationToken cancellationToken = default)
     {
-        _ = _hasBackend;
+        if (!_hasBackend)
+        {
+            return FinFail<T>(Error.New("No backend is configured. Configure either DbContext or DbConnection."));
+        }
 
         if (action is null)
         {
