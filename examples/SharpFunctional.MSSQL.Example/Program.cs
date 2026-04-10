@@ -50,7 +50,7 @@ Console.WriteLine();
 await using var sqlConnection = new SqlConnection(connectionString);
 await sqlConnection.OpenAsync();
 
-var db = new FunctionalMsSqlDb(dbContext: dbContext, connection: sqlConnection);
+var db = new FunctionalMsSqlDb(dbContext: dbContext, dbConnection: sqlConnection);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 2. Seed data — customers, products, orders, and order lines

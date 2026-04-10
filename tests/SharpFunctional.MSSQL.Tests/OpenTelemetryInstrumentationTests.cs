@@ -51,7 +51,7 @@ public class OpenTelemetryInstrumentationTests(DatabaseFixture fixture) : IDispo
         // Arrange
         var activities = new List<Activity>();
         using var listener = CreateListener(activities);
-        var db = new FunctionalMsSqlDb(connection: _connection);
+        var db = new FunctionalMsSqlDb(dbConnection: _connection);
 
         // Act
         var result = await db.Dapper().QuerySingleAsync<int>("SELECT 1", new { }, TestContext.Current.CancellationToken);
@@ -73,7 +73,7 @@ public class OpenTelemetryInstrumentationTests(DatabaseFixture fixture) : IDispo
         using var listener = CreateListener(activities);
         var options = new SqlExecutionOptions(
             activityEnricher: static activity => activity.SetTag("sharpfunctional.mssql.test.tag", "enriched"));
-        var db = new FunctionalMsSqlDb(connection: _connection, executionOptions: options);
+        var db = new FunctionalMsSqlDb(dbConnection: _connection, executionOptions: options);
 
         // Act
         var result = await db.Dapper().QuerySingleAsync<int>("SELECT 1", new { }, TestContext.Current.CancellationToken);
@@ -93,7 +93,7 @@ public class OpenTelemetryInstrumentationTests(DatabaseFixture fixture) : IDispo
         using var listener = CreateListener(activities);
         var options = new SqlExecutionOptions(
             activityEnricher: static _ => throw new InvalidOperationException("enricher failed"));
-        var db = new FunctionalMsSqlDb(connection: _connection, executionOptions: options);
+        var db = new FunctionalMsSqlDb(dbConnection: _connection, executionOptions: options);
 
         // Act
         var result = await db.Dapper().QuerySingleAsync<int>("SELECT 1", new { }, TestContext.Current.CancellationToken);
