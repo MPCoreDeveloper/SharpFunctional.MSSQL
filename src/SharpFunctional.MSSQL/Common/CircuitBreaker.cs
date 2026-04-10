@@ -74,14 +74,15 @@ public sealed class CircuitBreakerOptions
 /// }, cancellationToken);
 /// </code>
 /// </example>
-public sealed class CircuitBreaker(CircuitBreakerOptions? options = null)
+public sealed class CircuitBreaker(CircuitBreakerOptions? options = null, TimeProvider? timeProvider = null)
 {
     private readonly CircuitBreakerOptions _options = options ?? new CircuitBreakerOptions();
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private readonly Lock _stateLock = new();
 
     private CircuitState _state = CircuitState.Closed;
     private DateTime _openedAtUtc = DateTime.MinValue;
-    private DateTime _stateChangedAtUtc = DateTime.UtcNow;
+    private DateTime _stateChangedAtUtc = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
     private int _failureCount;
     private int _halfOpenSuccessCount;
 
@@ -120,7 +121,7 @@ public sealed class CircuitBreaker(CircuitBreakerOptions? options = null)
     {
         lock (_stateLock)
         {
-            var nowUtc = DateTime.UtcNow;
+            var nowUtc = _timeProvider.GetUtcNow().UtcDateTime;
             var state = EvaluateState(nowUtc);
             return new CircuitBreakerSnapshot(
                 State: state,
@@ -186,12 +187,12 @@ public sealed class CircuitBreaker(CircuitBreakerOptions? options = null)
             _state = CircuitState.Closed;
             _failureCount = 0;
             _halfOpenSuccessCount = 0;
-            _stateChangedAtUtc = DateTime.UtcNow;
+            _stateChangedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
         }
     }
 
     /// <remarks>Must be called inside <c>lock (_stateLock)</c>.</remarks>
-    private CircuitState EvaluateState() => EvaluateState(DateTime.UtcNow);
+    private CircuitState EvaluateState() => EvaluateState(_timeProvider.GetUtcNow().UtcDateTime);
 
     /// <remarks>Must be called inside <c>lock (_stateLock)</c>.</remarks>
     private CircuitState EvaluateState(DateTime utcNow)
@@ -215,13 +216,13 @@ public sealed class CircuitBreaker(CircuitBreakerOptions? options = null)
         if (_state == CircuitState.HalfOpen)
         {
             _state = CircuitState.Open;
-            _openedAtUtc = DateTime.UtcNow;
+            _openedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
             _stateChangedAtUtc = _openedAtUtc;
         }
         else if (_state == CircuitState.Closed && _failureCount >= _options.FailureThreshold)
         {
             _state = CircuitState.Open;
-            _openedAtUtc = DateTime.UtcNow;
+            _openedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
             _stateChangedAtUtc = _openedAtUtc;
         }
     }
@@ -238,7 +239,7 @@ public sealed class CircuitBreaker(CircuitBreakerOptions? options = null)
                 _state = CircuitState.Closed;
                 _failureCount = 0;
                 _halfOpenSuccessCount = 0;
-                _stateChangedAtUtc = DateTime.UtcNow;
+                _stateChangedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
             }
         }
         else
