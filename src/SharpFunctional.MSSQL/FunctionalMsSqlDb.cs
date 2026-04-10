@@ -106,10 +106,7 @@ public sealed class FunctionalMsSqlDb(
 
             try
             {
-                if (loggerInstance is not null)
-                {
-                    FunctionalMsSqlDbLog.StartingEfTransaction(loggerInstance, resultTypeName);
-                }
+                loggerInstance?.StartingEfTransaction(resultTypeName);
 
                 await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
                 var result = await action(this).ConfigureAwait(false);
@@ -117,10 +114,7 @@ public sealed class FunctionalMsSqlDb(
                 if (result.IsSucc)
                 {
                     await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-                    if (loggerInstance is not null)
-                    {
-                        FunctionalMsSqlDbLog.CommittedEfTransaction(loggerInstance, resultTypeName);
-                    }
+                    loggerInstance?.CommittedEfTransaction(resultTypeName);
 
                     activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
                     activity?.SetStatus(ActivityStatusCode.Ok);
@@ -128,10 +122,7 @@ public sealed class FunctionalMsSqlDb(
                 }
 
                 await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-                if (loggerInstance is not null)
-                {
-                    FunctionalMsSqlDbLog.RolledBackEfTransaction(loggerInstance, resultTypeName);
-                }
+                loggerInstance?.RolledBackEfTransaction(resultTypeName);
 
                 activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
                 activity?.SetStatus(ActivityStatusCode.Error, "transaction result failed");
@@ -139,10 +130,7 @@ public sealed class FunctionalMsSqlDb(
             }
             catch (Exception exception)
             {
-                if (loggerInstance is not null)
-                {
-                    FunctionalMsSqlDbLog.EfTransactionFailed(loggerInstance, resultTypeName, exception);
-                }
+                loggerInstance?.EfTransactionFailed(resultTypeName, exception);
 
                 activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
                 activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
@@ -168,10 +156,7 @@ public sealed class FunctionalMsSqlDb(
 
         try
         {
-            if (loggerInstance is not null)
-            {
-                FunctionalMsSqlDbLog.StartingDapperTransaction(loggerInstance, resultTypeName);
-            }
+            loggerInstance?.StartingDapperTransaction(resultTypeName);
 
             if (dbConnection.State != ConnectionState.Open)
             {
@@ -200,10 +185,7 @@ public sealed class FunctionalMsSqlDb(
             if (result.IsSucc)
             {
                 transaction.Commit();
-                if (loggerInstance is not null)
-                {
-                    FunctionalMsSqlDbLog.CommittedDapperTransaction(loggerInstance, resultTypeName);
-                }
+                loggerInstance?.CommittedDapperTransaction(resultTypeName);
 
                 dapperActivity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
                 dapperActivity?.SetStatus(ActivityStatusCode.Ok);
@@ -211,10 +193,7 @@ public sealed class FunctionalMsSqlDb(
             }
 
             transaction.Rollback();
-            if (loggerInstance is not null)
-            {
-                FunctionalMsSqlDbLog.RolledBackDapperTransaction(loggerInstance, resultTypeName);
-            }
+            loggerInstance?.RolledBackDapperTransaction(resultTypeName);
 
             dapperActivity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             dapperActivity?.SetStatus(ActivityStatusCode.Error, "transaction result failed");
@@ -222,10 +201,7 @@ public sealed class FunctionalMsSqlDb(
         }
         catch (Exception exception)
         {
-            if (loggerInstance is not null)
-            {
-                FunctionalMsSqlDbLog.DapperTransactionFailed(loggerInstance, resultTypeName, exception);
-            }
+            loggerInstance?.DapperTransactionFailed(resultTypeName, exception);
 
             dapperActivity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             dapperActivity?.SetStatus(ActivityStatusCode.Error, exception.Message);
@@ -255,10 +231,7 @@ public sealed class FunctionalMsSqlDb(
             try
             {
                 await dbConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
-                if (loggerInstance is not null)
-                {
-                    FunctionalMsSqlDbLog.OpenedSqlConnection(loggerInstance, attempt + 1);
-                }
+                loggerInstance?.OpenedSqlConnection(attempt + 1);
 
                 activity?.SetTag(SharpFunctionalMsSqlDiagnostics.RetryAttemptTag, attempt + 1);
                 activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
@@ -269,10 +242,7 @@ public sealed class FunctionalMsSqlDb(
                 when (attempt < Options.MaxRetryCount && SqlTransientDetector.IsTransient(exception))
             {
                 var retryDelay = Options.GetRetryDelay(attempt + 1);
-                if (loggerInstance is not null)
-                {
-                    FunctionalMsSqlDbLog.TransientSqlOpenFailure(loggerInstance, attempt + 1, retryDelay.TotalMilliseconds, exception);
-                }
+                loggerInstance?.TransientSqlOpenFailure(attempt + 1, retryDelay.TotalMilliseconds, exception);
 
                 activity?.AddEvent(new ActivityEvent("retry", tags: new ActivityTagsCollection
                 {
@@ -284,10 +254,7 @@ public sealed class FunctionalMsSqlDb(
             }
             catch (Exception exception)
             {
-                if (loggerInstance is not null)
-                {
-                    FunctionalMsSqlDbLog.SqlConnectionOpenFailed(loggerInstance, attempt + 1, exception);
-                }
+                loggerInstance?.SqlConnectionOpenFailed(attempt + 1, exception);
 
                 activity?.SetTag(SharpFunctionalMsSqlDiagnostics.RetryAttemptTag, attempt + 1);
                 activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
