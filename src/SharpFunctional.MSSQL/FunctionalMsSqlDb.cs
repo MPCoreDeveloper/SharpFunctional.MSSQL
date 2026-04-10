@@ -181,13 +181,12 @@ public sealed class FunctionalMsSqlDb(
                 }
             }
 
-            using var transaction = dbConnection.BeginTransaction();
-            _ambientTransaction = transaction;
+            _ambientTransaction = dbConnection.BeginTransaction();
 
             var result = await action(this).ConfigureAwait(false);
             if (result.IsSucc)
             {
-                transaction.Commit();
+                _ambientTransaction.Commit();
                 loggerInstance?.CommittedDapperTransaction(resultTypeName);
 
                 dapperActivity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
@@ -195,7 +194,7 @@ public sealed class FunctionalMsSqlDb(
                 return result;
             }
 
-            transaction.Rollback();
+            _ambientTransaction.Rollback();
             loggerInstance?.RolledBackDapperTransaction(resultTypeName);
 
             dapperActivity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
@@ -204,6 +203,8 @@ public sealed class FunctionalMsSqlDb(
         }
         catch (Exception exception)
         {
+            try { _ambientTransaction?.Rollback(); } catch { }
+
             loggerInstance?.DapperTransactionFailed(resultTypeName, exception);
 
             dapperActivity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
@@ -212,6 +213,7 @@ public sealed class FunctionalMsSqlDb(
         }
         finally
         {
+            _ambientTransaction?.Dispose();
             _ambientTransaction = null;
         }
     }

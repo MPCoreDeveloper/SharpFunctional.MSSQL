@@ -1,6 +1,7 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics.CodeAnalysis;
 using SharpFunctional.MsSql.Dapper;
 using SharpFunctional.MsSql.Ef;
 using SharpFunctional.MsSql.Functional;
@@ -147,6 +148,34 @@ public class FunctionalMsSqlDbTests(DatabaseFixture fixture) : IDisposable
     }
 
     [Fact]
+    public async Task InTransactionAsync_WithThrowingDapperAction_ShouldRollbackAndClearAmbientTransaction()
+    {
+        // Arrange
+        var fakeConnection = new RecordingDbConnection();
+        var db = new FunctionalMsSqlDb(dbConnection: fakeConnection);
+
+        // Act
+        var result = await db.InTransactionAsync<int>(_ => throw new InvalidOperationException("boom"), TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.IsFail);
+        Assert.Equal(1, fakeConnection.Transaction.BeginCount);
+        Assert.Equal(0, fakeConnection.Transaction.CommitCount);
+        Assert.Equal(1, fakeConnection.Transaction.RollbackCount);
+        Assert.Equal(1, fakeConnection.Transaction.DisposeCount);
+
+        // Verify ambient transaction state was cleared by starting a new transaction.
+        var secondResult = await db.InTransactionAsync(async _ =>
+        {
+            await Task.CompletedTask;
+            return Fin<int>.Succ(42);
+        }, TestContext.Current.CancellationToken);
+
+        Assert.True(secondResult.IsSucc);
+        Assert.Equal(2, fakeConnection.Transaction.BeginCount);
+    }
+
+    [Fact]
     public async Task InTransactionAsync_WithCanceledToken_ShouldReturnFail()
     {
         // Arrange
@@ -237,6 +266,7 @@ public class FunctionalMsSqlDbTests(DatabaseFixture fixture) : IDisposable
 
     private sealed class FailingOpenDbConnection : System.Data.Common.DbConnection
     {
+        [AllowNull]
         public override string ConnectionString { get; set; } = string.Empty;
 
         public override string Database => "Test";
@@ -262,5 +292,75 @@ public class FunctionalMsSqlDbTests(DatabaseFixture fixture) : IDisposable
         protected override System.Data.Common.DbTransaction BeginDbTransaction(System.Data.IsolationLevel isolationLevel) => throw new NotSupportedException();
 
         protected override System.Data.Common.DbCommand CreateDbCommand() => throw new NotSupportedException();
+    }
+
+    private sealed class RecordingDbConnection : System.Data.Common.DbConnection
+    {
+        public RecordingDbConnection()
+        {
+            Transaction = new RecordingDbTransaction(this);
+        }
+
+        public RecordingDbTransaction Transaction { get; }
+
+        [AllowNull]
+        public override string ConnectionString { get; set; } = string.Empty;
+
+        public override string Database => "Test";
+
+        public override string DataSource => "Test";
+
+        public override string ServerVersion => "1.0";
+
+        public override System.Data.ConnectionState State => System.Data.ConnectionState.Open;
+
+        public override void ChangeDatabase(string databaseName)
+        {
+        }
+
+        public override void Close()
+        {
+        }
+
+        public override void Open()
+        {
+        }
+
+        protected override System.Data.Common.DbTransaction BeginDbTransaction(System.Data.IsolationLevel isolationLevel)
+        {
+            Transaction.BeginCount++;
+            return Transaction;
+        }
+
+        protected override System.Data.Common.DbCommand CreateDbCommand() => throw new NotSupportedException();
+    }
+
+    private sealed class RecordingDbTransaction(RecordingDbConnection connection) : System.Data.Common.DbTransaction
+    {
+        public int BeginCount { get; set; }
+
+        public int CommitCount { get; private set; }
+
+        public int RollbackCount { get; private set; }
+
+        public int DisposeCount { get; private set; }
+
+        public override System.Data.IsolationLevel IsolationLevel => System.Data.IsolationLevel.ReadCommitted;
+
+        protected override System.Data.Common.DbConnection DbConnection => connection;
+
+        public override void Commit() => CommitCount++;
+
+        public override void Rollback() => RollbackCount++;
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                DisposeCount++;
+            }
+
+            base.Dispose(disposing);
+        }
     }
 }
