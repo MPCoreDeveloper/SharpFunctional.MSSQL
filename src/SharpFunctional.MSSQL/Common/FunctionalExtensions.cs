@@ -34,8 +34,13 @@ public static class FunctionalExtensions
                     None: () => Task.FromResult(Option<TOut>.None))
                 .ConfigureAwait(false);
         }
-        catch
+        catch (OperationCanceledException)
         {
+            throw;
+        }
+        catch (Exception)
+        {
+            // TODO -review This eats all exception information. Consider logging the exception or returning a Result type that can capture it. Or leave it to the caller to log by throwing.
             return Option<TOut>.None;
         }
     }
@@ -66,8 +71,13 @@ public static class FunctionalExtensions
                     None: () => Task.FromResult(Seq<TOut>()))
                 .ConfigureAwait(false);
         }
-        catch
+        catch (OperationCanceledException)
         {
+            throw;
+        }
+        catch (Exception)
+        {
+            // TODO -review This eats all exception information. Consider logging the exception or returning a Result type that can capture it. Or leave it to the caller to log by throwing.
             return Seq<TOut>();
         }
     }
@@ -95,8 +105,13 @@ public static class FunctionalExtensions
             var sequence = await source.WaitAsync(cancellationToken).ConfigureAwait(false);
             return mapper(sequence);
         }
-        catch
+        catch (OperationCanceledException)
         {
+            throw;
+        }
+        catch (Exception)
+        {
+            // TODO -review This eats all exception information. Consider logging the exception or returning a Result type that can capture it. Or leave it to the caller to log by throwing.
             return Seq<TOut>();
         }
     }
