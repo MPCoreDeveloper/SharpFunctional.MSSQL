@@ -504,11 +504,37 @@ Generates:
 
 ## Tests
 
+All integration tests support both **Windows (LocalDB)** and **Linux/macOS (Docker SQL Server)** environments.
+
+### Windows Setup
+
+Tests use `xUnit v3` and automatically connect to SQL Server LocalDB:
+
 ```bash
 dotnet test tests/SharpFunctional.MSSQL.Tests
 ```
 
-Test suite uses `xUnit v3` and includes LocalDB-backed integration tests.
+**Prerequisite:** SQL Server LocalDB must be running:
+```powershell
+sqllocaldb start MSSQLLocalDB
+```
+
+### Linux/macOS Setup
+
+Docker SQL Server is required. Start the container:
+
+```bash
+cd tests
+docker-compose up -d
+```
+
+Then run tests:
+
+```bash
+dotnet test tests/SharpFunctional.MSSQL.Tests
+```
+
+**Details:** See `tests/SharpFunctional.MSSQL.Tests/README.md` for comprehensive setup instructions, environment variables, troubleshooting, and CI/CD integration examples.
 
 ---
 
