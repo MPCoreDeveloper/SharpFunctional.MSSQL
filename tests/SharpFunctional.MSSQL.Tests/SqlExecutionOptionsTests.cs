@@ -57,4 +57,22 @@ public class SqlExecutionOptionsTests
         Assert.Equal(RetryJitterMode.Full, options.RetryJitterMode);
         Assert.NotNull(options.ActivityEnricher);
     }
+
+    [Fact]
+    public void Constructor_LegacySignature_ShouldExistForBackwardCompatibility()
+    {
+        // Act
+        var constructor = typeof(SqlExecutionOptions).GetConstructor(
+        [
+            typeof(int),
+            typeof(int),
+            typeof(TimeSpan?),
+            typeof(TimeSpan?),
+            typeof(RetryJitterMode),
+            typeof(Action<Activity>)
+        ]);
+
+        // Assert
+        Assert.NotNull(constructor);
+    }
 }

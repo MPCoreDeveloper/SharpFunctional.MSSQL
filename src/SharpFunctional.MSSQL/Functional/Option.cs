@@ -122,6 +122,18 @@ public readonly struct Option<T> : IEquatable<Option<T>>
         _isSome ? _value! : defaultFactory();
 
     /// <summary>
+    /// Converts this option to a <see cref="Fin{T}"/>.
+    /// <c>Some(value)</c> maps to a success; <c>None</c> maps to a failure using <paramref name="ifNone"/>.
+    /// </summary>
+    /// <param name="ifNone">The error to use when this option is <c>None</c>.</param>
+    /// <returns>A <see cref="Fin{T}"/> representing success or failure.</returns>
+    public Fin<T> ToFin(Error ifNone)
+    {
+        ArgumentNullException.ThrowIfNull(ifNone);
+        return _isSome ? Fin<T>.Succ(_value!) : Fin<T>.Fail(ifNone);
+    }
+
+    /// <summary>
     /// Implicit conversion from a value to <c>Some(value)</c>.
     /// Null values produce <c>None</c>.
     /// </summary>

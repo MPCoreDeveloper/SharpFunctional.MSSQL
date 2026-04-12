@@ -86,6 +86,25 @@ public readonly struct Seq<T> : IReadOnlyList<T>, IEquatable<Seq<T>>
     }
 
     /// <summary>
+    /// Flat-maps each element of this sequence using <paramref name="bind"/>, then flattens the results.
+    /// Equivalent to <c>SelectMany</c>.
+    /// </summary>
+    /// <typeparam name="TResult">The element type of the resulting sequence.</typeparam>
+    /// <param name="bind">A function that maps each element to a <see cref="Seq{TResult}"/>.</param>
+    /// <returns>A new sequence containing all elements from all projected sequences.</returns>
+    public Seq<TResult> Bind<TResult>(Func<T, Seq<TResult>> bind)
+    {
+        ArgumentNullException.ThrowIfNull(bind);
+        var builder = ImmutableArray.CreateBuilder<TResult>();
+        foreach (var item in Items)
+        {
+            foreach (var inner in bind(item).Items)
+                builder.Add(inner);
+        }
+        return new Seq<TResult>(builder.MoveToImmutable());
+    }
+
+    /// <summary>
     /// Returns a <see cref="ReadOnlySpan{T}"/> over the underlying data.
     /// </summary>
     /// <returns>A span over the sequence elements.</returns>

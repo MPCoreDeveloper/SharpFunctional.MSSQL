@@ -274,7 +274,7 @@ public sealed class FunctionalMsSqlDb(
                     { SharpFunctionalMsSqlDiagnostics.RetryAttemptTag, attempt + 1 },
                     { "retry.delay.ms", retryDelay.TotalMilliseconds }
                 }));
-                await Task.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(retryDelay, Options.TimeProvider, cancellationToken).ConfigureAwait(false);
                 attempt++;
             }
             catch (Exception exception)

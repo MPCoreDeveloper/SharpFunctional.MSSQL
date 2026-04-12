@@ -131,13 +131,46 @@ public readonly struct Fin<T> : IEquatable<Fin<T>>
         _isSucc ? bind(_value!) : Fin<TResult>.Fail(_error!);
 
     /// <summary>
-    /// Returns the success value or throws if this is a failure.
-    /// Prefer <see cref="Match{TResult}(Func{T, TResult}, Func{Error, TResult})"/> over this method.
+    /// Returns the success value or invokes <paramref name="handler"/> with the error and returns its result.
+    /// Prefer <see cref="Match{TResult}(Func{T, TResult}, Func{Error, TResult})"/> for exhaustive handling.
     /// </summary>
-    /// <returns>The success value.</returns>
-    /// <exception cref="InvalidOperationException">If this result is a failure.</exception>
     public T IfFail(Func<Error, T> handler) =>
         _isSucc ? _value! : handler(_error!);
+
+    /// <summary>
+    /// Async version of <see cref="Map{TResult}(Func{T, TResult})"/>.
+    /// Transforms the success value using an async <paramref name="map"/> function.
+    /// Failures pass through unchanged.
+    /// </summary>
+    /// <typeparam name="TResult">The mapped type.</typeparam>
+    /// <param name="map">The async mapping function.</param>
+    /// <returns>A task that resolves to a new result with the mapped success value, or the original failure.</returns>
+    public async Task<Fin<TResult>> MapAsync<TResult>(Func<T, Task<TResult>> map)
+    {
+        ArgumentNullException.ThrowIfNull(map);
+        return _isSucc ? Fin<TResult>.Succ(await map(_value!).ConfigureAwait(false)) : Fin<TResult>.Fail(_error!);
+    }
+
+    /// <summary>
+    /// Async version of <see cref="Bind{TResult}(Func{T, Fin{TResult}})"/>.
+    /// Flat-maps the success value using an async <paramref name="bind"/> function.
+    /// Failures pass through unchanged.
+    /// </summary>
+    /// <typeparam name="TResult">The bound type.</typeparam>
+    /// <param name="bind">The async binding function.</param>
+    /// <returns>A task that resolves to the result of the bind, or the original failure.</returns>
+    public Task<Fin<TResult>> BindAsync<TResult>(Func<T, Task<Fin<TResult>>> bind)
+    {
+        ArgumentNullException.ThrowIfNull(bind);
+        return _isSucc ? bind(_value!) : Task.FromResult(Fin<TResult>.Fail(_error!));
+    }
+
+    /// <summary>
+    /// Converts this result to an <see cref="Option{T}"/>.
+    /// A success maps to <c>Some(value)</c>; a failure maps to <c>None</c>.
+    /// </summary>
+    /// <returns><c>Some(value)</c> on success; <c>None</c> on failure.</returns>
+    public Option<T> ToOption() => _isSucc ? Option<T>.Some(_value!) : Option<T>.None;
 
     /// <summary>
     /// Implicit conversion from a value to a success result.

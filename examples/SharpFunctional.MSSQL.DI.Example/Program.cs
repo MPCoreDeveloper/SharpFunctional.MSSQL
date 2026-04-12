@@ -222,7 +222,7 @@ await using (var scope = combinedProvider.CreateAsyncScope())
         FailureThreshold = 3,
         OpenDuration = TimeSpan.FromSeconds(10),
         SuccessThresholdInHalfOpen = 1,
-    });
+    }, TimeProvider.System);
 
     var cbResult = await breaker.ExecuteAsync(async ct =>
         await svc.CountInStockAsync(ct));

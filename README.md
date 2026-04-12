@@ -8,8 +8,8 @@
 [![NuGet Downloads](https://img.shields.io/nuget/dt/SharpFunctional.MsSql.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download)
-[![NuGet](https://img.shields.io/badge/NuGet-3.0.2-blue.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
-[![Tests](https://img.shields.io/badge/Tests-150%2B-brightgreen.svg)](#testing)
+[![NuGet](https://img.shields.io/badge/NuGet-3.2.0-blue.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
+[![Tests](https://img.shields.io/badge/Tests-160%2B-brightgreen.svg)](#testing)
 [![C#](https://img.shields.io/badge/C%23-14-purple.svg)](https://learn.microsoft.com/en-us/dotnet/csharp/)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink.svg)](https://github.com/sponsors/MPCoreDeveloper)
 
@@ -44,9 +44,41 @@ This package helps you build SQL Server data access with:
 
 ---
 
-## What's new (v1.0.0 → v3.0.2)
+## What's new (v1.0.0 → v3.2.0)
 
-### What's added/changed between v3.0.0 and v3.0.2
+### v3.2.0 — Expanded functional API, Dapper improvements, and full telemetry coverage
+
+This release is fully **backwards compatible** — all changes are additive.
+
+**New methods on built-in functional types:**
+
+| Type | New method | Description |
+|---|---|---|
+| `Fin<T>` | `MapAsync<TResult>(Func<T, Task<TResult>>)` | Async transform of the success value |
+| `Fin<T>` | `BindAsync<TResult>(Func<T, Task<Fin<TResult>>>)` | Async flat-map of the success value |
+| `Fin<T>` | `ToOption()` | Convert to `Option<T>` (`Succ` → `Some`, `Fail` → `None`) |
+| `Option<T>` | `ToFin(Error ifNone)` | Convert to `Fin<T>` (`Some` → `Succ`, `None` → `Fail(ifNone)`) |
+| `Seq<T>` | `Bind<TResult>(Func<T, Seq<TResult>>)` | Flat-map / SelectMany over the sequence |
+| `FunctionalExtensions` | `Map<TIn,TOut>(this Task<Fin<TIn>>, Func<TIn,TOut>)` | Async map extension for `Task<Fin<T>>` |
+
+**Dapper improvements:**
+- Parameterless overloads for all five Dapper query/proc methods — no longer required to pass `new { }` or `null` when a stored procedure or query takes no parameters:
+  - `ExecuteStoredProcSingleAsync<T>(procName, ct)`
+  - `ExecuteStoredProcAsync<T>(procName, ct)`
+  - `ExecuteStoredProcNonQueryAsync(procName, ct)`
+  - `QueryAsync<T>(sql, ct)`
+  - `QuerySingleAsync<T>(sql, ct)`
+- Source-generated `[LoggerMessage]` logging throughout `DapperFunctionalDb` — matches the zero-allocation pattern already used in `FunctionalMsSqlDb`. Direct `Logger?.LogDebug/Error/Warning` calls replaced with source-generated `DapperFunctionalDbLog` methods.
+
+**OpenTelemetry completeness:**
+- `EfFunctionalDb.GetByIdAsync`, `FindOneAsync`, and `QueryAsync` now emit activities — previously the only three EF Core methods without tracing. All EF operations are now fully covered.
+
+**Bug fix:**
+- `Fin<T>.IfFail(Func<Error, T>)` XML documentation was incorrect (stated "throws" instead of "invokes handler").
+
+---
+
+### What's added/changed between v3.0.0 and v3.1.1
 
 The `3.0.1` and `3.0.2` releases are fully **backwards compatible** and focus on resilience and observability improvements.
 
@@ -135,11 +167,12 @@ Foundation of the functional SQL Server access library:
 ## Features
 
 ### Functional API model (zero-dependency, built-in)
-- `Option<T>` for optional values
-- `Seq<T>` for query result sequences (backed by `ImmutableArray<T>`)
-- `Fin<T>` for success/failure with error context
+- `Option<T>` for optional values — `Map`, `Bind`, `Filter`, `IfSome`, `IfNone`, `ToFin(Error)`
+- `Seq<T>` for query result sequences (backed by `ImmutableArray<T>`) — `Map`, `Filter`, `Bind` (flatMap), `AsSpan`
+- `Fin<T>` for success/failure with error context — `Map`, `MapAsync`, `Bind`, `BindAsync`, `Match`, `ToOption`, `IfSucc`, `IfFail`
 - `Unit` as void replacement
 - `Error` for structured error representation
+- `FunctionalExtensions` async composition: `Bind`, `Map` for `Task<Option<T>>`, `Task<Seq<T>>`, and `Task<Fin<T>>`
 
 ### EF Core integration (`EfFunctionalDb`)
 - `GetByIdAsync<T, TId>`
@@ -159,11 +192,11 @@ Foundation of the functional SQL Server access library:
 - `StreamAsync<T>` — `IAsyncEnumerable<T>` streaming for large data sets
 
 ### Dapper integration (`DapperFunctionalDb`)
-- `QueryAsync<T>`
-- `QuerySingleAsync<T>`
-- `ExecuteStoredProcAsync<T>`
-- `ExecuteStoredProcSingleAsync<T>`
-- `ExecuteStoredProcNonQueryAsync`
+- `QueryAsync<T>` (with or without parameters)
+- `QuerySingleAsync<T>` (with or without parameters)
+- `ExecuteStoredProcAsync<T>` (with or without parameters)
+- `ExecuteStoredProcSingleAsync<T>` (with or without parameters)
+- `ExecuteStoredProcNonQueryAsync` (with or without parameters)
 - `ExecuteStoredProcPaginatedAsync<T>` — paginated stored procedure results via `QueryMultipleAsync`
 
 ### Transaction support (`FunctionalMsSqlDb`)
@@ -190,13 +223,13 @@ Foundation of the functional SQL Server access library:
 
 ### Observability
 - `ILogger` hooks for lifecycle/failure/retry diagnostics
-- source-generated `LoggerMessage` logging in `FunctionalMsSqlDb` to reduce allocations in package-level diagnostics
+- source-generated `LoggerMessage` logging in `FunctionalMsSqlDb` **and `DapperFunctionalDb`** — zero-allocation diagnostics at disabled log levels
 - OpenTelemetry support via `ActivitySource`:
   - source name: `SharpFunctional.MsSql`
   - transaction activities
   - Dapper query/stored proc activities
-  - EF Core activities (pagination, batch insert/update/delete, specification queries)
-  - retry events + standardized tags (`backend`, `operation`, `success`, `retry.attempt`)
+  - EF Core activities — **full coverage** including `GetByIdAsync`, `FindOneAsync`, `QueryAsync`, pagination, batch insert/update/delete, specification queries
+  - retry events and standardized tags (`backend`, `operation`, `success`, `retry.attempt`)
   - optional custom activity enrichment via `SqlExecutionOptions.ActivityEnricher`
   - extended tags: `entity_type`, `batch_size`, `item_count`, `page_number`, `page_size`, `duration_ms`, `correlation_id`, `circuit_state`
 
@@ -428,7 +461,7 @@ var options = new CircuitBreakerOptions
     SuccessThresholdInHalfOpen = 2
 };
 
-var breaker = new CircuitBreaker(options);
+var breaker = new CircuitBreaker(options, TimeProvider.System);
 
 var result = await breaker.ExecuteAsync(
     async ct => await db.Ef().GetByIdAsync<User, int>(42, ct),
@@ -455,6 +488,36 @@ page.Match(
     Fail: error => Console.WriteLine(error));
 ```
 
+### 11) Parameterless Dapper calls
+
+```csharp
+// No parameters needed — just omit the param argument
+var all = await db.Dapper().QueryAsync<UserDto>("SELECT * FROM Users", cancellationToken);
+var next = await db.Dapper().ExecuteStoredProcAsync<OrderDto>("usp_GetPendingOrders", cancellationToken);
+```
+
+### 12) Async functional composition
+
+```csharp
+// MapAsync / BindAsync on Fin<T>
+var dto = await db.Ef()
+    .GetByIdAsync<User, int>(42, cancellationToken)
+    .Bind(user => db.Ef().FindOneAsync<Profile>(p => p.UserId == user.Id, cancellationToken))
+    .Map(profile => new ProfileDto(profile!.Bio));
+
+// Convert between Option<T> and Fin<T>
+Option<User> option = await db.Ef().FindOneAsync<User>(u => u.Email == email, cancellationToken);
+Fin<User> fin = option.ToFin(Error.New("User not found"));
+
+Fin<User> finResult = await db.Ef()
+    .GetByIdAsync<User, int>(1, cancellationToken)
+    .Bind(opt => Task.FromResult(opt.ToFin(Error.New("Not found"))));
+Option<User> back = finResult.ToOption();
+
+// Bind (flatMap) on Seq<T>
+Seq<Tag> allTags = tagGroups.Bind(group => group.Tags);
+```
+
 ---
 
 ## OpenTelemetry integration
@@ -470,7 +533,7 @@ You can optionally enrich each emitted activity via `SqlExecutionOptions.Activit
 Emitted telemetry includes:
 - transaction activities (EF and Dapper)
 - Dapper operation activities (`dapper.query.seq`, `dapper.query.single`, `dapper.storedproc.*`)
-- EF Core operation activities (`ef.find.paginated`, `ef.find.spec`, `ef.batch.insert`, `ef.batch.update`, `ef.batch.delete`)
+- EF Core operation activities (`ef.getbyid`, `ef.findone`, `ef.query`, `ef.find.paginated`, `ef.find.spec`, `ef.batch.insert`, `ef.batch.update`, `ef.batch.delete`)
 - retry events and standardized tags (`backend`, `operation`, `success`, `retry.attempt`)
 - extended diagnostic tags:
   - `entity_type` — the entity CLR type name
@@ -541,7 +604,7 @@ dotnet test tests/SharpFunctional.MSSQL.Tests
 ## Repository structure
 
 - `src/` — library source
-- `tests/` — xUnit v3 test suite (150+ tests)
+- `tests/` — xUnit v3 test suite (160+ tests)
 - `examples/` — runnable sample applications:
   - `SharpFunctional.MSSQL.Example` — full-featured console app (16 sections covering CRUD, aggregates, functional chaining, Dapper, transactions, pagination, specification pattern, batch operations, streaming, circuit breaker, and DI)
   - `SharpFunctional.MSSQL.DI.Example` — dependency injection example with `ProductService` demonstrating all three registration overloads, pagination, specification queries, batch inserts, streaming, and circuit breaker

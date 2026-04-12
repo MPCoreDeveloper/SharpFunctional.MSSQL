@@ -27,13 +27,15 @@ public enum RetryJitterMode
 /// <param name="maxRetryDelay">Maximum retry delay cap.</param>
 /// <param name="retryJitterMode">Retry jitter mode. Default is <see cref="Common.RetryJitterMode.None"/>.</param>
 /// <param name="activityEnricher">Optional activity enricher called for each created activity.</param>
+/// <param name="timeProvider">Time provider used for retry scheduling. Defaults to <see cref="TimeProvider.System"/>.</param>
 public sealed class SqlExecutionOptions(
     int commandTimeoutSeconds = 30,
     int maxRetryCount = 2,
     TimeSpan? baseRetryDelay = null,
     TimeSpan? maxRetryDelay = null,
     RetryJitterMode retryJitterMode = RetryJitterMode.None,
-    Action<Activity>? activityEnricher = null)
+    Action<Activity>? activityEnricher = null,
+    TimeProvider? timeProvider = null)
 {
     /// <summary>
     /// Default SQL execution options.
@@ -77,6 +79,32 @@ public sealed class SqlExecutionOptions(
     /// Optional delegate used to enrich emitted activities with custom tags.
     /// </summary>
     public Action<Activity>? ActivityEnricher { get; } = activityEnricher;
+
+    /// <summary>
+    /// Time provider used for retry delay scheduling.
+    /// </summary>
+    public TimeProvider TimeProvider { get; } = timeProvider ?? TimeProvider.System;
+
+    /// <summary>
+    /// Initializes SQL execution options using the legacy constructor signature.
+    /// Preserves backward compatibility by defaulting to <see cref="TimeProvider.System"/>.
+    /// </summary>
+    /// <param name="commandTimeoutSeconds">Command timeout in seconds.</param>
+    /// <param name="maxRetryCount">Maximum retry attempts for transient failures.</param>
+    /// <param name="baseRetryDelay">Base retry delay used for exponential backoff.</param>
+    /// <param name="maxRetryDelay">Maximum retry delay cap.</param>
+    /// <param name="retryJitterMode">Retry jitter mode.</param>
+    /// <param name="activityEnricher">Optional activity enricher called for each created activity.</param>
+    public SqlExecutionOptions(
+        int commandTimeoutSeconds,
+        int maxRetryCount,
+        TimeSpan? baseRetryDelay,
+        TimeSpan? maxRetryDelay,
+        RetryJitterMode retryJitterMode,
+        Action<Activity>? activityEnricher)
+        : this(commandTimeoutSeconds, maxRetryCount, baseRetryDelay, maxRetryDelay, retryJitterMode, activityEnricher, timeProvider: null)
+    {
+    }
 
     /// <summary>
     /// Calculates exponential backoff delay for a retry attempt.

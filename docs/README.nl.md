@@ -423,7 +423,7 @@ var options = new CircuitBreakerOptions
     SuccessThresholdInHalfOpen = 2
 };
 
-var breaker = new CircuitBreaker(options);
+var breaker = new CircuitBreaker(options, TimeProvider.System);
 
 var result = await breaker.ExecuteAsync(
     async ct => await db.Ef().GetByIdAsync<User, int>(42, ct),

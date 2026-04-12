@@ -43,9 +43,9 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            if (Logger?.IsEnabled(LogLevel.Debug) is true)
+            if (Logger is not null)
             {
-                Logger.LogDebug("Executing stored procedure {ProcName} for single value type {ResultType}", procName, typeof(T).Name);
+                DapperFunctionalDbLog.ExecutingStoredProcSingle(Logger, procName, typeof(T).Name);
             }
 
             var result = await ExecuteWithRetryAsync(
@@ -72,12 +72,27 @@ public sealed class DapperFunctionalDb(
         }
         catch (Exception exception)
         {
-            Logger?.LogError(exception, "Stored procedure {ProcName} failed for single value type {ResultType}", procName, typeof(T).Name);
+            if (Logger is not null)
+            {
+                DapperFunctionalDbLog.StoredProcSingleFailed(Logger, procName, typeof(T).Name, exception);
+            }
+
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
             return Option<T>.None;
         }
     }
+
+    /// <summary>
+    /// Executes a stored procedure and returns a single optional value.
+    /// </summary>
+    /// <typeparam name="T">The result type.</typeparam>
+    /// <param name="procName">The name of the stored procedure to execute.</param>
+    /// <param name="cancellationToken">Token used to cancel the query.</param>
+    public Task<Option<T>> ExecuteStoredProcSingleAsync<T>(
+        string procName,
+        CancellationToken cancellationToken = default) =>
+        ExecuteStoredProcSingleAsync<T>(procName, param: null!, cancellationToken);
 
     /// <summary>
     /// Executes a stored procedure and returns all rows as a materialized sequence.
@@ -100,9 +115,9 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            if (Logger?.IsEnabled(LogLevel.Debug) is true)
+            if (Logger is not null)
             {
-                Logger.LogDebug("Executing stored procedure {ProcName} for sequence type {ResultType}", procName, typeof(T).Name);
+                DapperFunctionalDbLog.ExecutingStoredProcSeq(Logger, procName, typeof(T).Name);
             }
 
             var result = await ExecuteWithRetryAsync(
@@ -129,12 +144,27 @@ public sealed class DapperFunctionalDb(
         }
         catch (Exception exception)
         {
-            Logger?.LogError(exception, "Stored procedure {ProcName} failed for sequence type {ResultType}", procName, typeof(T).Name);
+            if (Logger is not null)
+            {
+                DapperFunctionalDbLog.StoredProcSeqFailed(Logger, procName, typeof(T).Name, exception);
+            }
+
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
             return Seq<T>();
         }
     }
+
+    /// <summary>
+    /// Executes a stored procedure and returns all rows as a materialized sequence.
+    /// </summary>
+    /// <typeparam name="T">The result type.</typeparam>
+    /// <param name="procName">The name of the stored procedure to execute.</param>
+    /// <param name="cancellationToken">Token used to cancel the query.</param>
+    public Task<Seq<T>> ExecuteStoredProcAsync<T>(
+        string procName,
+        CancellationToken cancellationToken = default) =>
+        ExecuteStoredProcAsync<T>(procName, param: null!, cancellationToken);
 
     /// <summary>
     /// Executes a non-query stored procedure.
@@ -161,9 +191,9 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            if (Logger?.IsEnabled(LogLevel.Debug) is true)
+            if (Logger is not null)
             {
-                Logger.LogDebug("Executing non-query stored procedure {ProcName}", procName);
+                DapperFunctionalDbLog.ExecutingStoredProcNonQuery(Logger, procName);
             }
 
             await ExecuteWithRetryAsync(
@@ -191,12 +221,26 @@ public sealed class DapperFunctionalDb(
         }
         catch (Exception exception)
         {
-            Logger?.LogError(exception, "Non-query stored procedure {ProcName} failed", procName);
+            if (Logger is not null)
+            {
+                DapperFunctionalDbLog.StoredProcNonQueryFailed(Logger, procName, exception);
+            }
+
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
             return FinFail<Unit>(Error.New(exception));
         }
     }
+
+    /// <summary>
+    /// Executes a parameterless non-query stored procedure.
+    /// </summary>
+    /// <param name="procName">The name of the stored procedure to execute.</param>
+    /// <param name="cancellationToken">Token used to cancel the command.</param>
+    public Task<Fin<Unit>> ExecuteStoredProcNonQueryAsync(
+        string procName,
+        CancellationToken cancellationToken = default) =>
+        ExecuteStoredProcNonQueryAsync(procName, param: null!, cancellationToken);
 
     /// <summary>
     /// Executes a SQL query and returns all rows as a materialized sequence.
@@ -219,9 +263,9 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            if (Logger?.IsEnabled(LogLevel.Debug) is true)
+            if (Logger is not null)
             {
-                Logger.LogDebug("Executing SQL query for sequence type {ResultType}", typeof(T).Name);
+                DapperFunctionalDbLog.ExecutingQuerySeq(Logger, typeof(T).Name);
             }
 
             var result = await ExecuteWithRetryAsync(
@@ -247,12 +291,27 @@ public sealed class DapperFunctionalDb(
         }
         catch (Exception exception)
         {
-            Logger?.LogError(exception, "SQL query failed for sequence type {ResultType}", typeof(T).Name);
+            if (Logger is not null)
+            {
+                DapperFunctionalDbLog.QuerySeqFailed(Logger, typeof(T).Name, exception);
+            }
+
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
             return Seq<T>();
         }
     }
+
+    /// <summary>
+    /// Executes a SQL query and returns all rows as a materialized sequence.
+    /// </summary>
+    /// <typeparam name="T">The result type.</typeparam>
+    /// <param name="sql">The SQL query to execute.</param>
+    /// <param name="cancellationToken">Token used to cancel the query.</param>
+    public Task<Seq<T>> QueryAsync<T>(
+        string sql,
+        CancellationToken cancellationToken = default) =>
+        QueryAsync<T>(sql, param: null!, cancellationToken);
 
     /// <summary>
     /// Executes a SQL query and returns a single optional value.
@@ -275,9 +334,9 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            if (Logger?.IsEnabled(LogLevel.Debug) is true)
+            if (Logger is not null)
             {
-                Logger.LogDebug("Executing SQL query for single value type {ResultType}", typeof(T).Name);
+                DapperFunctionalDbLog.ExecutingQuerySingle(Logger, typeof(T).Name);
             }
 
             var result = await ExecuteWithRetryAsync(
@@ -303,12 +362,27 @@ public sealed class DapperFunctionalDb(
         }
         catch (Exception exception)
         {
-            Logger?.LogError(exception, "SQL query failed for single value type {ResultType}", typeof(T).Name);
+            if (Logger is not null)
+            {
+                DapperFunctionalDbLog.QuerySingleFailed(Logger, typeof(T).Name, exception);
+            }
+
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
             return Option<T>.None;
         }
     }
+
+    /// <summary>
+    /// Executes a SQL query and returns a single optional value.
+    /// </summary>
+    /// <typeparam name="T">The result type.</typeparam>
+    /// <param name="sql">The SQL query to execute.</param>
+    /// <param name="cancellationToken">Token used to cancel the query.</param>
+    public Task<Option<T>> QuerySingleAsync<T>(
+        string sql,
+        CancellationToken cancellationToken = default) =>
+        QuerySingleAsync<T>(sql, param: null!, cancellationToken);
 
     /// <summary>
     /// Executes a stored procedure that returns paginated results.
@@ -346,9 +420,9 @@ public sealed class DapperFunctionalDb(
 
         try
         {
-            if (Logger?.IsEnabled(LogLevel.Debug) is true)
+            if (Logger is not null)
             {
-                Logger.LogDebug("Executing paginated stored procedure {ProcName} page {PageNumber} size {PageSize}", procName, pageNumber, pageSize);
+                DapperFunctionalDbLog.ExecutingStoredProcPaginated(Logger, procName, pageNumber, pageSize);
             }
 
             var result = await ExecuteWithRetryAsync(
@@ -378,7 +452,11 @@ public sealed class DapperFunctionalDb(
         }
         catch (Exception exception)
         {
-            Logger?.LogError(exception, "Paginated stored procedure {ProcName} failed", procName);
+            if (Logger is not null)
+            {
+                DapperFunctionalDbLog.StoredProcPaginatedFailed(Logger, procName, exception);
+            }
+
             activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
             activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
             return FinFail<QueryResults<T>>(Error.New(exception));
@@ -404,13 +482,17 @@ public sealed class DapperFunctionalDb(
                 when (attempt < Options.MaxRetryCount && SqlTransientDetector.IsTransient(exception))
             {
                 var retryDelay = Options.GetRetryDelay(attempt + 1);
-                Logger?.LogWarning(exception, "Transient SQL failure on operation {OperationName} attempt {Attempt}. Retrying in {DelayMs} ms", operationName, attempt + 1, retryDelay.TotalMilliseconds);
+                if (Logger is not null)
+                {
+                    DapperFunctionalDbLog.TransientSqlOperationFailure(Logger, operationName, attempt + 1, retryDelay.TotalMilliseconds, exception);
+                }
+
                 Activity.Current?.AddEvent(new ActivityEvent("retry", tags: new ActivityTagsCollection
                 {
                     { SharpFunctionalMsSqlDiagnostics.RetryAttemptTag, attempt + 1 },
                     { "retry.delay.ms", retryDelay.TotalMilliseconds }
                 }));
-                await Task.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(retryDelay, Options.TimeProvider, cancellationToken).ConfigureAwait(false);
                 attempt++;
             }
         }

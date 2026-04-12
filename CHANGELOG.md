@@ -6,6 +6,19 @@ All notable changes to **SharpFunctional.MSSQL** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2026-04-12
+
+### Added
+- `CircuitBreaker` now supports an optional `TimeProvider` for deterministic clock-based state transitions and snapshots
+- `SqlExecutionOptions` now exposes `TimeProvider` used by retry scheduling
+
+### Changed
+- Retry delays now use configured `TimeProvider` in both `FunctionalMsSqlDb` and `DapperFunctionalDb`
+- Documentation/examples updated to show `TimeProvider`-aware circuit breaker construction
+
+### Compatibility
+- Legacy constructor overloads were preserved/added for `CircuitBreaker` and `SqlExecutionOptions` to maintain backward binary compatibility
+
 ## [3.1.0] - 2026-03-26
 
 ### Added

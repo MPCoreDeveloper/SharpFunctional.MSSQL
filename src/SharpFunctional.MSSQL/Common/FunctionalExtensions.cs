@@ -137,4 +137,39 @@ public static class FunctionalExtensions
             return FinFail<TOut>(Error.New(exception));
         }
     }
+
+    /// <summary>
+    /// Maps the successful value of an async <see cref="Fin{T}"/> result.
+    /// Failures pass through unchanged.
+    /// </summary>
+    /// <typeparam name="TIn">The input type.</typeparam>
+    /// <typeparam name="TOut">The output type.</typeparam>
+    /// <param name="source">The async source result.</param>
+    /// <param name="map">Function that transforms the successful value.</param>
+    /// <param name="cancellationToken">Token used to cancel awaiting the source.</param>
+    public static async Task<Fin<TOut>> Map<TIn, TOut>(
+        this Task<Fin<TIn>> source,
+        Func<TIn, TOut> map,
+        CancellationToken cancellationToken = default)
+    {
+        if (source is null)
+        {
+            return FinFail<TOut>(Error.New("Source task cannot be null."));
+        }
+
+        if (map is null)
+        {
+            return FinFail<TOut>(Error.New("Map function cannot be null."));
+        }
+
+        try
+        {
+            var value = await source.WaitAsync(cancellationToken).ConfigureAwait(false);
+            return value.Map(map);
+        }
+        catch (Exception exception)
+        {
+            return FinFail<TOut>(Error.New(exception));
+        }
+    }
 }

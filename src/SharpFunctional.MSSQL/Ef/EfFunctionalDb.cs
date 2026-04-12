@@ -43,10 +43,12 @@ public sealed class EfFunctionalDb(
             return Option<T>.None;
         }
 
+        using var activity = StartEfActivity("ef.getbyid", typeof(T).Name);
+
         try
         {
             var predicate = BuildPrimaryKeyPredicate<T, TId>(Context, id);
-            return await predicate.Match(
+            var result = await predicate.Match(
                     Some: async p =>
                     {
                         var query = SetForQuery<T>(Context, TrackingEnabled);
@@ -55,9 +57,15 @@ public sealed class EfFunctionalDb(
                     },
                     None: () => Task.FromResult(Option<T>.None))
                 .ConfigureAwait(false);
+
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+            return result;
         }
         catch
         {
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
+            activity?.SetStatus(ActivityStatusCode.Error);
             return Option<T>.None;
         }
     }
@@ -76,14 +84,20 @@ public sealed class EfFunctionalDb(
             return Option<T>.None;
         }
 
+        using var activity = StartEfActivity("ef.findone", typeof(T).Name);
+
         try
         {
             var query = SetForQuery<T>(Context, TrackingEnabled);
             var entity = await query.FirstOrDefaultAsync(predicate, cancellationToken).ConfigureAwait(false);
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
+            activity?.SetStatus(ActivityStatusCode.Ok);
             return Optional(entity);
         }
         catch
         {
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
+            activity?.SetStatus(ActivityStatusCode.Error);
             return Option<T>.None;
         }
     }
@@ -102,14 +116,21 @@ public sealed class EfFunctionalDb(
             return Seq<T>();
         }
 
+        using var activity = StartEfActivity("ef.query", typeof(T).Name);
+
         try
         {
             var query = SetForQuery<T>(Context, TrackingEnabled);
             var entities = await query.Where(predicate).ToListAsync(cancellationToken).ConfigureAwait(false);
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.ItemCountTag, entities.Count);
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, true);
+            activity?.SetStatus(ActivityStatusCode.Ok);
             return toSeq(entities);
         }
         catch
         {
+            activity?.SetTag(SharpFunctionalMsSqlDiagnostics.SuccessTag, false);
+            activity?.SetStatus(ActivityStatusCode.Error);
             return Seq<T>();
         }
     }

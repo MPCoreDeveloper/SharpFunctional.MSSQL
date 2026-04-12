@@ -545,7 +545,7 @@ var breaker = new CircuitBreaker(new CircuitBreakerOptions
     FailureThreshold = 3,
     OpenDuration = TimeSpan.FromSeconds(5),
     SuccessThresholdInHalfOpen = 2,
-});
+}, TimeProvider.System);
 
 Console.WriteLine($"  Initial state: {breaker.State}");
 
