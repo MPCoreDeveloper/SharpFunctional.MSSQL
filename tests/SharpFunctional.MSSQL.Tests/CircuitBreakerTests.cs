@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Time.Testing;
 using SharpFunctional.MsSql.Common;
 using SharpFunctional.MsSql.Functional;
 using Xunit;
@@ -7,18 +8,6 @@ namespace SharpFunctional.MsSql.Tests;
 
 public class CircuitBreakerTests
 {
-    private sealed class ManualTimeProvider(DateTimeOffset initialUtc) : TimeProvider
-    {
-        private DateTimeOffset _utcNow = initialUtc;
-
-        public override DateTimeOffset GetUtcNow() => _utcNow;
-
-        public void Advance(TimeSpan duration)
-        {
-            _utcNow = _utcNow.Add(duration);
-        }
-    }
-
     private static readonly Func<CancellationToken, Task<Fin<int>>> SuccessOp =
         _ => Task.FromResult<Fin<int>>(42);
 
@@ -136,18 +125,18 @@ public class CircuitBreakerTests
     public async Task State_AfterOpenDurationExpires_ShouldTransitionToHalfOpen()
     {
         // Arrange
-        var timeProvider = new ManualTimeProvider(DateTimeOffset.UtcNow);
+        var fakeTime = new FakeTimeProvider();
         var breaker = new CircuitBreaker(new CircuitBreakerOptions
         {
             FailureThreshold = 1,
             OpenDuration = TimeSpan.FromMilliseconds(50)
-        }, timeProvider);
+        }, fakeTime);
         var ct = TestContext.Current.CancellationToken;
         await breaker.ExecuteAsync(FailOp, ct);
         Assert.Equal(CircuitState.Open, breaker.State);
 
-        // Act — advance virtual time past open duration
-        timeProvider.Advance(TimeSpan.FromMilliseconds(100));
+        // Act — advance time past the open duration
+        fakeTime.Advance(TimeSpan.FromMilliseconds(100));
 
         // Assert
         Assert.Equal(CircuitState.HalfOpen, breaker.State);
@@ -159,16 +148,16 @@ public class CircuitBreakerTests
     public async Task ExecuteAsync_WhenHalfOpenAndSucceeds_ShouldCloseAfterThreshold()
     {
         // Arrange
-        var timeProvider = new ManualTimeProvider(DateTimeOffset.UtcNow);
+        var fakeTime = new FakeTimeProvider();
         var breaker = new CircuitBreaker(new CircuitBreakerOptions
         {
             FailureThreshold = 1,
             OpenDuration = TimeSpan.FromMilliseconds(50),
             SuccessThresholdInHalfOpen = 2
-        }, timeProvider);
+        }, fakeTime);
         var ct = TestContext.Current.CancellationToken;
         await breaker.ExecuteAsync(FailOp, ct);
-        timeProvider.Advance(TimeSpan.FromMilliseconds(100));
+        fakeTime.Advance(TimeSpan.FromMilliseconds(100));
         Assert.Equal(CircuitState.HalfOpen, breaker.State);
 
         // Act — two successes in half-open
@@ -184,15 +173,15 @@ public class CircuitBreakerTests
     public async Task ExecuteAsync_WhenHalfOpenAndFails_ShouldReopenImmediately()
     {
         // Arrange
-        var timeProvider = new ManualTimeProvider(DateTimeOffset.UtcNow);
+        var fakeTime = new FakeTimeProvider();
         var breaker = new CircuitBreaker(new CircuitBreakerOptions
         {
             FailureThreshold = 1,
             OpenDuration = TimeSpan.FromMilliseconds(50)
-        }, timeProvider);
+        }, fakeTime);
         var ct = TestContext.Current.CancellationToken;
         await breaker.ExecuteAsync(FailOp, ct);
-        timeProvider.Advance(TimeSpan.FromMilliseconds(100));
+        fakeTime.Advance(TimeSpan.FromMilliseconds(100));
         Assert.Equal(CircuitState.HalfOpen, breaker.State);
 
         // Act — fail in half-open
