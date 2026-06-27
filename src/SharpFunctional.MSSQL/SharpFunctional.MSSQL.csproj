@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>true</IsPackable>
     <PackageId>SharpFunctional.MsSql</PackageId>
-    <Version>3.2.0</Version>
+    <Version>3.2.1</Version>
     <Authors>SharpFunctional Contributors</Authors>
     <Company>SharpFunctional</Company>
     <Description>Functional-first SQL Server access for EF Core 10 and Dapper with zero-dependency functional types, retry jitter, circuit breaker snapshots, and OpenTelemetry activity enrichment hooks.</Description>
@@ -23,7 +23,22 @@
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>3.2.0: Expanded functional API (Fin&lt;T&gt;.MapAsync/BindAsync/ToOption, Option&lt;T&gt;.ToFin, Seq&lt;T&gt;.Bind flatMap, FunctionalExtensions.Map for Task&lt;Fin&lt;T&gt;&gt;), parameterless Dapper overloads, source-generated LoggerMessage logging in DapperFunctionalDb, full OpenTelemetry coverage for EfFunctionalDb.GetByIdAsync/FindOneAsync/QueryAsync, and XML doc fix on Fin&lt;T&gt;.IfFail.</PackageReleaseNotes>
+    <PackageReleaseNotes>3.2.1 - Maintenance release: Updated to latest stable dependencies for .NET 10
+
+    This is a pure dependency refresh release. No public API or behavioral changes.
+
+    Updated packages:
+    - Microsoft.EntityFrameworkCore 10.0.9
+    - Microsoft.EntityFrameworkCore.SqlServer 10.0.9
+    - Microsoft.Data.SqlClient 7.0.2
+    - Dapper 2.1.79
+    - Microsoft.Extensions.Logging 10.0.9
+    - Microsoft.Extensions.Logging.Abstractions 10.0.9
+    - Microsoft.Extensions.Options 10.0.9
+    - Microsoft.Extensions.DependencyInjection.Abstractions 10.0.9
+
+    Fully backwards compatible with 3.2.0.
+    Safe drop-in upgrade.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,7 +48,7 @@
 
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.79" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />

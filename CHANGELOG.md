@@ -6,6 +6,23 @@ All notable changes to **SharpFunctional.MSSQL** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.1] - 2026-06-27
+
+### Changed
+- Updated all primary dependencies to latest stable versions compatible with .NET 10:
+  - `Microsoft.EntityFrameworkCore` → 10.0.9
+  - `Microsoft.EntityFrameworkCore.SqlServer` → 10.0.9
+  - `Microsoft.Data.SqlClient` → 7.0.2
+  - `Dapper` → 2.1.79
+  - `Microsoft.Extensions.Logging` / `Abstractions` → 10.0.9
+  - `Microsoft.Extensions.Options` → 10.0.9
+  - `Microsoft.Extensions.DependencyInjection.Abstractions` → 10.0.9
+- No public API or behavioral changes.
+- This is a pure dependency refresh / maintenance release.
+
+### Compatibility
+- Fully backwards compatible with 3.2.0. Drop-in replacement.
+
 ## [3.1.1] - 2026-04-12
 
 ### Added

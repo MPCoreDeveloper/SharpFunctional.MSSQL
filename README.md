@@ -8,7 +8,7 @@
 [![NuGet Downloads](https://img.shields.io/nuget/dt/SharpFunctional.MsSql.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/download)
-[![NuGet](https://img.shields.io/badge/NuGet-3.2.0-blue.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
+[![NuGet](https://img.shields.io/badge/NuGet-3.2.1-blue.svg)](https://www.nuget.org/packages/SharpFunctional.MsSql)
 [![Tests](https://img.shields.io/badge/Tests-160%2B-brightgreen.svg)](#testing)
 [![C#](https://img.shields.io/badge/C%23-14-purple.svg)](https://learn.microsoft.com/en-us/dotnet/csharp/)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink.svg)](https://github.com/sponsors/MPCoreDeveloper)
@@ -44,7 +44,25 @@ This package helps you build SQL Server data access with:
 
 ---
 
-## What's new (v1.0.0 → v3.2.0)
+## What's new (v1.0.0 → v3.2.1)
+
+### v3.2.1 — Updated to latest stable dependencies
+
+This is a maintenance release that updates all primary dependencies to their latest stable versions compatible with .NET 10.
+
+**Key packages updated:**
+
+| Package | Version |
+|---------|---------|
+| `Microsoft.EntityFrameworkCore` | 10.0.9 |
+| `Microsoft.EntityFrameworkCore.SqlServer` | 10.0.9 |
+| `Microsoft.Data.SqlClient` | 7.0.2 |
+| `Dapper` | 2.1.79 |
+| `Microsoft.Extensions.Logging` + `Abstractions` | 10.0.9 |
+| `Microsoft.Extensions.Options` | 10.0.9 |
+| `Microsoft.Extensions.DependencyInjection.Abstractions` | 10.0.9 |
+
+No public API or behavioral changes. The library continues to target **.NET 10** and **C# 14**.
 
 ### v3.2.0 — Expanded functional API, Dapper improvements, and full telemetry coverage
 

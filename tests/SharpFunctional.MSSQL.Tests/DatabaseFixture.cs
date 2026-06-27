@@ -96,7 +96,21 @@ public sealed class DatabaseFixture : IAsyncLifetime
         try
         {
             await using var context = CreateDbContext();
-            await context.Database.EnsureDeletedAsync();
+
+            // Use raw SQL for deletion to handle LocalDB edge cases where the catalog entry exists
+            // but physical files are missing (produces error 5120/1801 on EnsureDeleted/EnsureCreated).
+            // This is more robust than EnsureDeletedAsync() alone for corrupted LocalDB state.
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    "IF DB_ID('TestDB') IS NOT NULL BEGIN ALTER DATABASE TestDB SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE TestDB; END");
+            }
+            catch (SqlException)
+            {
+                // Ignore errors during forced cleanup - the DB might be in a partially deleted state.
+                // We'll proceed to EnsureCreated which will handle creation.
+            }
+
             await context.Database.EnsureCreatedAsync();
         }
         catch (SqlException ex) when (ex.Number == -2 || ex.Number == 4060)

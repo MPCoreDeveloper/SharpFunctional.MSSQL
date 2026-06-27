@@ -143,8 +143,12 @@ public class FunctionalMsSqlDbTests(DatabaseFixture fixture) : IDisposable
 
         // Assert
         Assert.True(result.IsFail);
-        Assert.Contains(loggerFactory.Entries, entry => entry.Level == LogLevel.Debug && entry.Message == "Starting Dapper transaction for result type Int32");
-        Assert.Contains(loggerFactory.Entries, entry => entry.Level == LogLevel.Error && entry.Message == "SQL dbConnection open failed after 1 attempt(s)" && entry.Exception is InvalidOperationException);
+        Assert.Equal(2, loggerFactory.Entries.Count);
+        Assert.Equal(LogLevel.Debug, loggerFactory.Entries[0].Level);
+        Assert.Equal("Starting Dapper transaction for result type Int32", loggerFactory.Entries[0].Message);
+        Assert.Equal(LogLevel.Error, loggerFactory.Entries[1].Level);
+        Assert.Equal("SQL connection open failed after 1 attempt(s)", loggerFactory.Entries[1].Message);
+        Assert.IsType<InvalidOperationException>(loggerFactory.Entries[1].Exception);
     }
 
     [Fact]
